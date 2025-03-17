@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experience Points - Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Experience Points</h1>
+        
+        <div class="auth-container">
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">Login</button>
+                <button class="auth-tab" data-tab="register">Register</button>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="loginForm" class="auth-form">
+                <div class="form-group">
+                    <label for="login-username">Username:</label>
+                    <input type="text" id="login-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password:</label>
+                    <input type="password" id="login-password" required>
+                </div>
+                <button type="submit" class="btn">Login</button>
+            </form>
+            
+            <!-- Register Form -->
+            <form id="registerForm" class="auth-form" style="display: none;">
+                <div class="form-group">
+                    <label for="register-username">Username:</label>
+                    <input type="text" id="register-username" required>
+                </div>
+                <div class="form-group">
+                    <label for="register-password">Create Password:</label>
+                    <input type="password" id="register-password" required>
+                </div>
+                <div class="form-group">
+                    <label>Choose Your Path:</label>
+                    <div class="template-grid">
+                        <div class="template-card" data-template="hybrid_athlete">
+                            <h3>🏃‍♂️ The Hybrid Athlete</h3>
+                            <ul>
+                                <li>Hyrox Training (1/10)</li>
+                                <li>Padel (1/10)</li>
+                                <li>Reformer Pilates (5/10)</li>
+                                <li>French (2/100)</li>
+                            </ul>
+                        </div>
+                        <div class="template-card" data-template="racketmaster">
+                            <h3>🎾 The Racketmaster</h3>
+                            <ul>
+                                <li>Padel (5/10)</li>
+                                <li>Tennis (7/20)</li>
+                                <li>Squash (3/20)</li>
+                                <li>Badminton (2/10)</li>
+                            </ul>
+                        </div>
+                        <div class="template-card" data-template="financial_assassin">
+                            <h3>💰 The Financial Assassin</h3>
+                            <ul>
+                                <li>ETF Savings (£2k/£10k)</li>
+                                <li>Cash Savings (£1k/£3k)</li>
+                                <li>House Savings (£2k/£20k)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn">Start Your Journey</button>
+            </form>
+        </div>
+    </div>
+    
+    <script src="auth.js" type="module"></script>
+</body>
+</html>

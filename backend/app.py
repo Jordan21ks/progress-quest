@@ -1,0 +1,201 @@
+from flask import Flask, request, jsonify, session
+from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+from flask_cors import CORS
+from werkzeug.security import generate_password_hash, check_password_hash
+import os
+from datetime import datetime, timedelta
+
+app = Flask(__name__)
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": ["http://localhost:8080"], "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_123')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///experience_points.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+
+# Models
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(120), nullable=False)
+    goals = db.relationship('Goal', backref='user', lazy=True)
+
+class Goal(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False)
+    current = db.Column(db.Float, nullable=False)
+    target = db.Column(db.Float, nullable=False)
+    level = db.Column(db.Integer, default=1)
+    deadline = db.Column(db.DateTime, nullable=True)
+    type = db.Column(db.String(20), nullable=False)  # 'skill' or 'financial'
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    history = db.relationship('History', backref='goal', lazy=True)
+
+class History(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    date = db.Column(db.DateTime, nullable=False)
+    value = db.Column(db.Float, nullable=False)
+    goal_id = db.Column(db.Integer, db.ForeignKey('goal.id'), nullable=False)
+
+# Templates
+TEMPLATES = {
+    'hybrid_athlete': {
+        'name': 'The Hybrid Athlete',
+        'skills': [
+            {'name': 'Hyrox Training', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Padel', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Reformer Pilates', 'current': 5, 'target': 10, 'level': 1},
+            {'name': 'French', 'current': 2, 'target': 100, 'level': 1}
+        ]
+    },
+    'racketmaster': {
+        'name': 'The Racketmaster',
+        'skills': [
+            {'name': 'Padel', 'current': 5, 'target': 10, 'level': 1},
+            {'name': 'Tennis', 'current': 7, 'target': 20, 'level': 1},
+            {'name': 'Squash', 'current': 3, 'target': 20, 'level': 1},
+            {'name': 'Badminton', 'current': 2, 'target': 10, 'level': 1}
+        ]
+    },
+    'financial_assassin': {
+        'name': 'The Financial Assassin',
+        'financial': [
+            {'name': 'ETF Savings', 'current': 2000, 'target': 10000, 'level': 1},
+            {'name': 'Cash Savings', 'current': 1000, 'target': 3000, 'level': 1},
+            {'name': 'House Savings', 'current': 2000, 'target': 20000, 'level': 1}
+        ]
+    }
+}
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+def goal_to_dict(goal):
+    return {
+        'id': goal.id,
+        'name': goal.name,
+        'current': goal.current,
+        'target': goal.target,
+        'level': goal.level,
+        'deadline': goal.deadline.isoformat() if goal.deadline else None,
+        'type': goal.type,
+        'history': [{'date': h.date.isoformat(), 'value': h.value} for h in goal.history]
+    }
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+    template = data.get('template')
+    
+    if User.query.filter_by(username=username).first():
+        return jsonify({'error': 'Username already exists'}), 400
+        
+    user = User(username=username, password_hash=generate_password_hash(password))
+    db.session.add(user)
+    db.session.commit()
+    
+    if template and template in TEMPLATES:
+        template_data = TEMPLATES[template]
+        default_deadline = datetime.now() + timedelta(days=90)
+        
+        # Add skills
+        if 'skills' in template_data:
+            for skill in template_data['skills']:
+                goal = Goal(
+                    name=skill['name'],
+                    current=skill['current'],
+                    target=skill['target'],
+                    level=skill['level'],
+                    type='skill',
+                    deadline=default_deadline,
+                    user_id=user.id
+                )
+                db.session.add(goal)
+                history = History(date=datetime.now(), value=skill['current'], goal=goal)
+                db.session.add(history)
+        
+        # Add financial goals
+        if 'financial' in template_data:
+            for fin in template_data['financial']:
+                goal = Goal(
+                    name=fin['name'],
+                    current=fin['current'],
+                    target=fin['target'],
+                    level=fin['level'],
+                    type='financial',
+                    deadline=default_deadline,
+                    user_id=user.id
+                )
+                db.session.add(goal)
+                history = History(date=datetime.now(), value=fin['current'], goal=goal)
+                db.session.add(history)
+        
+        db.session.commit()
+    
+    login_user(user)
+    return jsonify({'message': 'Registration successful'})
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    user = User.query.filter_by(username=data.get('username')).first()
+    
+    if user and check_password_hash(user.password_hash, data.get('password')):
+        login_user(user)
+        return jsonify({'message': 'Login successful'})
+    
+    return jsonify({'error': 'Invalid username or password'}), 401
+
+@app.route('/api/logout')
+@login_required
+def logout():
+    logout_user()
+    return jsonify({'message': 'Logout successful'})
+
+@app.route('/api/templates')
+def get_templates():
+    return jsonify({
+        'templates': [
+            {'id': key, 'name': value['name']} 
+            for key, value in TEMPLATES.items()
+        ]
+    })
+
+@app.route('/api/goals')
+@login_required
+def get_goals():
+    goals = current_user.goals
+    return jsonify({
+        'skills': [goal_to_dict(g) for g in goals if g.type == 'skill'],
+        'financial': [goal_to_dict(g) for g in goals if g.type == 'financial']
+    })
+
+@app.route('/api/goals', methods=['POST'])
+@login_required
+def update_goal():
+    data = request.get_json()
+    goal = Goal.query.get(data.get('id'))
+    
+    if not goal or goal.user_id != current_user.id:
+        return jsonify({'error': 'Goal not found'}), 404
+    
+    goal.current = data.get('current', goal.current)
+    goal.target = data.get('target', goal.target)
+    goal.deadline = datetime.fromisoformat(data.get('deadline')) if data.get('deadline') else goal.deadline
+    
+    history = History(date=datetime.now(), value=goal.current, goal=goal)
+    db.session.add(history)
+    db.session.commit()
+    
+    return jsonify(goal_to_dict(goal))
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+    app.run(port=5001)
