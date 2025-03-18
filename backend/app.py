@@ -176,8 +176,19 @@ def register():
         
         db.session.commit()
     
-    login_user(user)
-    return jsonify({'message': 'Registration successful'})
+    token = jwt.encode({
+        'user_id': user.id,
+        'exp': datetime.utcnow() + timedelta(days=7)
+    }, app.config['SECRET_KEY'], algorithm='HS256')
+    
+    return jsonify({
+        'message': 'Registration successful',
+        'token': token,
+        'user': {
+            'id': user.id,
+            'username': user.username
+        }
+    })
 
 @app.route('/api/login', methods=['POST'])
 def login():
