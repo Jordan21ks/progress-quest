@@ -128,6 +128,13 @@ h1 {
   justify-content: space-between;
   margin-bottom: 10px;
   color: var(--ff-gold);
+  align-items: center;
+}
+
+.level-display {
+  font-size: 0.7em;
+  color: var(--ff-crystal);
+  margin-left: 8px;
 }
 
 .progress-bar {

@@ -320,6 +320,39 @@ def update_goal(current_user):
     
     return jsonify(goal_to_dict(goal))
 
+# Dynamic fact fetching
+@app.route('/api/facts', methods=['POST'])
+@token_required
+def get_fact(current_user):
+    data = request.get_json()
+    search_term = data.get('searchTerm')
+    
+    if not search_term:
+        return jsonify({'error': 'No search term provided'}), 400
+    
+    try:
+        # Use DuckDuckGo API to get relevant search results
+        from duckduckgo_search import ddg
+        results = ddg(search_term, max_results=5)
+        
+        if not results:
+            return jsonify({'error': 'No facts found'}), 404
+        
+        # Extract most relevant fact from search results
+        import random
+        fact = random.choice(results)['body']
+        
+        # Clean up and format the fact
+        fact = fact.replace('\n', ' ').strip()
+        if len(fact) > 200:
+            fact = fact[:197] + '...'
+        
+        return jsonify({'fact': fact})
+        
+    except Exception as e:
+        print('Error fetching fact:', e)
+        return jsonify({'error': 'Failed to fetch fact'}), 500
+
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()

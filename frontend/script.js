@@ -312,7 +312,7 @@ function renderProgressBar(container, item, isFinancial = false) {
 
     div.innerHTML = `
         <div class="progress-label">
-            <span>${emoji} ${item.name} (Lv. ${item.level})</span>
+            <span>${emoji} ${item.name}<span class="level-display">(Lv. ${item.level})</span></span>
             <span>${value}</span>
         </div>
         <div class="progress-bar">
@@ -574,21 +574,27 @@ export async function handleFormSubmit(event) {
                 );
                 
                 if (hitMilestone) {
-                    if (type === 'skill') {
-                        const facts = SKILL_FACTS[name] || SKILL_FACTS['Default'];
-                        if (facts) {
-                            // Use specific fact index based on milestone (0 for >25%, 2 for >75%)
-                            const factIndex = hitMilestone === 25 ? 0 : 2;
-                            const fact = facts[factIndex] || facts[0];
+                    // Fetch dynamic fact based on skill/goal name
+                    const searchTerm = type === 'skill' ? 
+                        `${name} activity benefits statistics research` : 
+                        'debt repayment financial advice research';
+                    
+                    try {
+                        const response = await fetch('https://experience-points-backend.onrender.com/api/facts', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            },
+                            body: JSON.stringify({ searchTerm })
+                        });
+                        
+                        if (response.ok) {
+                            const { fact } = await response.json();
                             showFunFact(name, fact);
                         }
-                    } else {
-                        const facts = SKILL_FACTS['Debt Repayment'];
-                        if (facts) {
-                            const factIndex = hitMilestone === 25 ? 0 : 2;
-                            const fact = facts[factIndex] || facts[0];
-                            showFunFact(name, fact, true);
-                        }
+                    } catch (error) {
+                        console.error('Failed to fetch fact:', error);
                     }
                 }
             }
