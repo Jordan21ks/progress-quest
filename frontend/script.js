@@ -18,7 +18,7 @@ function checkAuth() {
 // Load goals from API
 async function loadGoals() {
     try {
-        const response = await fetch('http://localhost:5001/api/goals', {
+        const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
             credentials: 'include'
         });
         
@@ -313,7 +313,7 @@ export async function handleFormSubmit(event) {
             const oldHistory = list[existingIndex].history;
             
             // Send update to backend
-            const response = await fetch('http://localhost:5001/api/goals', {
+            const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -360,7 +360,7 @@ export async function handleFormSubmit(event) {
             }
         } else {
             // Create new goal
-            const response = await fetch('http://localhost:5001/api/goals', {
+            const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

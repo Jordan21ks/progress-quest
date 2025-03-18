@@ -39,7 +39,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const password = document.getElementById('login-password').value;
     
     try {
-        const response = await fetch('http://localhost:5001/api/login', {
+        const response = await fetch('https://experience-points-backend.onrender.com/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -76,7 +76,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const password = document.getElementById('register-password').value;
     
     try {
-        const response = await fetch('http://localhost:5001/api/register', {
+        const response = await fetch('https://experience-points-backend.onrender.com/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
