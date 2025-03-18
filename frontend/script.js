@@ -249,14 +249,34 @@ export function showAddForm(type) {
 
 // Skill emojis mapping
 const skillEmojis = {
+    // Sports
     'Tennis': '🎾',
     'BJJ': '🥋',
     'Cycling': '🚴',
     'Skiing': '⛷️',
     'Padel': '🏸',
-    'Spanish': '🗣️',
     'Pilates': '🧘',
+    
+    // Languages
+    'Spanish': '🗣️',
+    'French': '🇫🇷',
+    'Japanese': '🇯🇵',
+    
+    // Hyrox
+    '1km Running': '🏃',
+    'Skierg': '🎿',
+    'Row': '🚣',
+    'Sled Push': '🛷',
+    'Burpee Broad Jumps': '💪',
+    'Sandbag Lunges': '🏋️',
+    'Sled Pull': '🛷',
+    'Wall Balls': '🏀',
+    'Farmers Carry': '🏋️',
+    
+    // Others
     'Cooking': '👨‍🍳',
+    'Hyrox Training': '🏃',
+    'Reformer Pilates': '🧘'
 };
 
 // Show edit form
@@ -279,12 +299,21 @@ function showEditForm(item, type, event) {
     // Make name field readonly for edits
     nameInput.readOnly = true;
     
-    // Position modal on the left side
+    // Position modal based on screen size
     const rect = event ? event.currentTarget.getBoundingClientRect() : { top: window.innerHeight / 2 };
     modal.style.position = 'fixed';
-    modal.style.left = '20px';
-    modal.style.top = `${Math.max(20, Math.min(rect.top, window.innerHeight - 400))}px`;
-    modal.style.transform = 'none';
+    
+    if (window.innerWidth <= 768) {
+        // Center modal on mobile
+        modal.style.left = '50%';
+        modal.style.top = '45%';
+        modal.style.transform = 'translate(-50%, -50%)';
+    } else {
+        // Position on the left side for desktop
+        modal.style.left = '20px';
+        modal.style.top = `${Math.max(20, Math.min(rect.top, window.innerHeight - 400))}px`;
+        modal.style.transform = 'none';
+    }
     
     modal.style.display = 'block';
 }
@@ -391,7 +420,13 @@ export async function handleFormSubmit(event) {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
-                body: JSON.stringify({ name, current, target, deadline, type })
+                body: JSON.stringify({
+                    name,
+                    current,
+                    target,
+                    deadline,
+                    type
+                })
             });
             
             if (!response.ok) {

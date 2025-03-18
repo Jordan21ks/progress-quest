@@ -21,21 +21,53 @@ tabs.forEach(tab => {
     });
 });
 
-// Template selection
-const templateCards = document.querySelectorAll('.template-card');
+// Load and render templates
+async function loadTemplates() {
+    try {
+        const response = await fetch('https://experience-points-backend.onrender.com/api/templates');
+        const data = await response.json();
+        const templateGrid = document.querySelector('.template-grid');
+        
+        // Clear existing templates
+        templateGrid.innerHTML = '';
+        
+        // Render each template
+        data.templates.forEach(template => {
+            const card = document.createElement('div');
+            card.className = 'template-card';
+            card.dataset.template = template.id;
+            card.innerHTML = `
+                <h3>${template.name}</h3>
+                <ul>
+                    <li>Start your journey</li>
+                    <li>Track your progress</li>
+                    <li>Level up your skills</li>
+                </ul>
+            `;
+            
+            // Add click handler
+            card.addEventListener('click', () => {
+                playMenuSound();
+                document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedTemplate = template.id;
+                
+                // Clear error message
+                document.getElementById('register-error').style.display = 'none';
+            });
+            
+            templateGrid.appendChild(card);
+        });
+    } catch (error) {
+        console.error('Failed to load templates:', error);
+    }
+}
+
+// Initialize template selection
 let selectedTemplate = null;
 
-templateCards.forEach(card => {
-    card.addEventListener('click', () => {
-        playMenuSound();
-        templateCards.forEach(c => c.classList.remove('selected'));
-        card.classList.add('selected');
-        selectedTemplate = card.dataset.template;
-        
-        // Clear error message
-        document.getElementById('register-error').style.display = 'none';
-    });
-});
+// Load templates when page loads
+document.addEventListener('DOMContentLoaded', loadTemplates);
 
 // Handle login
 document.getElementById('loginForm').addEventListener('submit', async (e) => {

@@ -8,16 +8,35 @@ import jwt
 from functools import wraps
 
 app = Flask(__name__)
+# Configure CORS
+allowed_origins = [
+    'https://experiencepoints.app',  # Production
+    'http://experiencepoints.app',   # Production HTTP (redirects to HTTPS)
+    'http://localhost:8080'         # Local development
+]
+
 CORS(app, resources={r"/api/*": {
-    "origins": ["https://experiencepoints.app", "http://experiencepoints.app", "http://localhost:8080"],
+    "origins": allowed_origins,
     "methods": ["GET", "POST", "OPTIONS"],
-    "allow_headers": ["Content-Type", "Authorization"]
+    "allow_headers": ["Content-Type", "Authorization"],
+    "expose_headers": ["Content-Type"]
 }})
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+
 # Configuration
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_123')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///experience_points.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+if not app.config['SECRET_KEY']:
+    raise ValueError('No SECRET_KEY set for Flask application')
+
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///experience_points.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Environment-specific settings
+DEBUG = os.environ.get('FLASK_ENV') == 'development'
 
 db = SQLAlchemy(app)
 
@@ -96,6 +115,32 @@ TEMPLATES = {
             {'name': 'Cash Savings', 'current': 1000, 'target': 3000, 'level': 1},
             {'name': 'House Savings', 'current': 2000, 'target': 20000, 'level': 1}
         ]
+    },
+    'hyrox_monster': {
+        'name': 'The Hyrox Monster',
+        'skills': [
+            {'name': '1km Running', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Skierg', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Row', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Sled Push', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Burpee Broad Jumps', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Sandbag Lunges', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Sled Pull', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Wall Balls', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Farmers Carry', 'current': 1, 'target': 10, 'level': 1}
+        ]
+    },
+    'polyglot': {
+        'name': 'The Polyglot',
+        'skills': [
+            {'name': 'French', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Spanish', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Japanese', 'current': 1, 'target': 10, 'level': 1}
+        ]
+    },
+    'clean_slate': {
+        'name': 'The Clean Slate',
+        'skills': []
     }
 }
 
@@ -238,8 +283,26 @@ def get_goals(current_user):
 @token_required
 def update_goal(current_user):
     data = request.get_json()
-    goal = Goal.query.get(data.get('id'))
     
+    # If no ID is provided, create a new goal
+    if not data.get('id'):
+        goal = Goal(
+            name=data.get('name'),
+            current=data.get('current', 0),
+            target=data.get('target', 10),
+            level=1,
+            type=data.get('type', 'skill'),
+            deadline=datetime.fromisoformat(data.get('deadline')) if data.get('deadline') else (datetime.now() + timedelta(days=90)),
+            user_id=current_user.id
+        )
+        db.session.add(goal)
+        history = History(date=datetime.now(), value=goal.current, goal=goal)
+        db.session.add(history)
+        db.session.commit()
+        return jsonify(goal_to_dict(goal))
+    
+    # Update existing goal
+    goal = Goal.query.get(data.get('id'))
     if not goal or goal.user_id != current_user.id:
         return jsonify({'error': 'Goal not found'}), 404
     
