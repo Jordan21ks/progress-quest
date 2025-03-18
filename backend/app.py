@@ -92,6 +92,7 @@ class History(db.Model):
 TEMPLATES = {
     'clean_slate': {
         'name': 'The Clean Slate',
+        'description': 'Add your own skills + goals',
         'skills': []
     },
     'hybrid_athlete': {

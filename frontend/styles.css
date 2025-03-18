@@ -441,10 +441,18 @@ h1 {
 
 .template-card h3 {
   color: var(--ff-crystal);
-  margin: 0 0 16px 0;
+  margin: 0 0 10px 0;
   font-size: 14px;
   line-height: 1.4;
   text-shadow: 0 0 5px var(--ff-crystal);
+}
+
+.template-description {
+  color: var(--ff-text);
+  font-size: 10px;
+  margin: -5px 0 15px;
+  opacity: 0.8;
+  font-style: italic;
 }
 
 .template-card ul {

@@ -135,6 +135,7 @@ async function loadTemplates() {
             
             card.innerHTML = `
                 <h3>${template.name}</h3>
+                ${template.description ? `<p class="template-description">${template.description}</p>` : ''}
                 ${skillsList}
             `;
             
