@@ -1,9 +1,5 @@
 import { playLevelUpSound, playVictorySound } from './sounds.js';
 
-// Global arrays for skills and financial goals
-let skills = [];
-let financialGoals = [];
-
 // Fun facts and progression milestones for skills
 const SKILL_FACTS = {
     // Financial Wisdom
@@ -155,15 +151,15 @@ async function loadGoals() {
             throw new Error(data.error || 'Failed to load your goals');
         }
         
-        // Update with new data if available
-        if (Array.isArray(data.skills)) skills = data.skills;
-        if (Array.isArray(data.financial)) financialGoals = data.financial;
+        // Initialize or update arrays
+        window.skills = Array.isArray(data.skills) ? data.skills : [];
+        window.financialGoals = Array.isArray(data.financial) ? data.financial : [];
         
         // Ensure history arrays exist
-        skills.forEach(skill => {
+        window.skills.forEach(skill => {
             if (!Array.isArray(skill.history)) skill.history = [];
         });
-        financialGoals.forEach(goal => {
+        window.financialGoals.forEach(goal => {
             if (!Array.isArray(goal.history)) goal.history = [];
         });
         
@@ -172,7 +168,7 @@ async function loadGoals() {
     } catch (error) {
         console.error('Error loading goals:', error);
         // Only show alert if we have no goals
-        if (skills.length === 0 && financialGoals.length === 0) {
+        if (!window.skills?.length && !window.financialGoals?.length) {
             alert(error.message || 'Failed to load goals');
         }
     }
@@ -365,8 +361,8 @@ function renderAll() {
     skillsContainer.innerHTML = '';
     financialContainer.innerHTML = '';
     
-    skills.forEach(skill => renderProgressBar(skillsContainer, skill));
-    financialGoals.forEach(goal => renderProgressBar(financialContainer, goal, true));
+    window.skills?.forEach(skill => renderProgressBar(skillsContainer, skill));
+    window.financialGoals?.forEach(goal => renderProgressBar(financialContainer, goal, true));
 }
 
 // Show add/edit form
@@ -502,8 +498,8 @@ export async function handleFormSubmit(event) {
             throw new Error('Please enter valid numbers');
         }
         
-        const list = type === 'skill' ? skills : financialGoals;
-        const existingIndex = list.findIndex(item => item.name === name);
+        const list = type === 'skill' ? window.skills : window.financialGoals;
+        const existingIndex = list?.findIndex(item => item.name === name) ?? -1;
         
         // Prepare request data
         const requestData = {
