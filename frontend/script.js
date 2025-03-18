@@ -2,6 +2,14 @@ import { playLevelUpSound, playVictorySound } from './sounds.js';
 
 // Fun facts and progression milestones for skills
 const SKILL_FACTS = {
+    // Financial Wisdom
+    'Debt Repayment': [
+        'Warren Buffett: The most important thing to do if you find yourself in a hole is to stop digging.',
+        'Charlie Munger: A great business at a fair price is superior to a fair business at a great price.',
+        'Morgan Housel: Your personal experiences with money make up maybe 0.00000001% of what\'s happened in the world, but maybe 80% of how you think the world works.',
+        'Warren Buffett: Do not save what is left after spending, but spend what is left after saving.',
+        'Charlie Munger: The first rule of compounding is to never interrupt it unnecessarily.'
+    ],
     // Sports
     'Tennis': [
         'Did you know? Just 1 hour of tennis can burn up to 600 calories!',
