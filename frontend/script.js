@@ -88,9 +88,6 @@ const FINANCIAL_FACTS = [
 ];
 
 // Data storage
-let skills = [];
-let financialGoals = [];
-
 // Check authentication
 async function checkAuth() {
     const token = localStorage.getItem('token');
@@ -630,40 +627,61 @@ function showFunFact(name, fact, milestone, isFinancial = false) {
     });
 }
 
+// Initialize window objects
+window.skills = [];
+window.financialGoals = [];
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
-    if (!await checkAuth()) return;
+    // Check auth first
+    if (!await checkAuth()) {
+        window.location.href = 'login.html';
+        return;
+    }
     
     // Load goals
-    loadGoals();
+    await loadGoals();
     
     // Set up form handlers
-    document.getElementById('goalForm').addEventListener('submit', handleFormSubmit);
+    const goalForm = document.getElementById('goalForm');
+    if (goalForm) {
+        goalForm.addEventListener('submit', handleFormSubmit);
+    }
     
     // Set up logout handler
-    document.getElementById('logoutBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        logout();
-    });
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            logout();
+        });
+    }
     
     // Set up add buttons
     const addSkillBtn = document.getElementById('addSkillBtn');
-    addSkillBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        showAddForm('skill');
-    });
+    if (addSkillBtn) {
+        addSkillBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            showAddForm('skill');
+        });
+    }
     
     const addFinancialBtn = document.getElementById('addFinancialBtn');
-    addFinancialBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        showAddForm('financial');
-    });
+    if (addFinancialBtn) {
+        addFinancialBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            showAddForm('financial');
+        });
+    }
     
     // Set up cancel button
-    document.getElementById('cancelBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        hideModal();
-    });
+    const cancelBtn = document.getElementById('cancelBtn');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            hideModal();
+        });
+    }
     
     // Close modal on outside click
     window.addEventListener('click', (event) => {
@@ -672,6 +690,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             hideModal();
         }
     });
-    
-
 });
