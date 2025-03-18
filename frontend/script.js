@@ -365,19 +365,23 @@ function renderAll() {
 // Show add/edit form
 export function showAddForm(type) {
     console.log('showAddForm called with type:', type);
-    playMenuSound();
     const modal = document.getElementById('goalModal');
     const modalTitle = document.getElementById('modalTitle');
     const typeInput = document.getElementById('goal-type');
     const nameInput = document.getElementById('goal-name');
     const targetInput = document.getElementById('goal-target');
     const currentInput = document.getElementById('goal-current');
+    const deadlineInput = document.getElementById('goal-deadline');
     
     modalTitle.textContent = type === 'skill' ? '🗡️ New Skill' : '💰 New Financial Goal';
     typeInput.value = type;
     nameInput.value = '';
     targetInput.value = '';
     currentInput.value = '';
+    deadlineInput.value = '';
+    
+    modal.style.display = 'block';
+    nameInput.focus();
     
     // Enable name field for new items
     nameInput.readOnly = false;

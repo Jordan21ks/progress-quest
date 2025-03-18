@@ -71,38 +71,52 @@ async function loadTemplates() {
             card.dataset.template = template.id;
             
             let skillsList = '';
-            if (template.skills && template.skills.length > 0) {
-                const skillsData = template.skills.map(skill => ({
-                    name: skill.name || skill,  // Handle both object and string formats
-                    target: skill.target || 10   // Default target if not specified
-                }));
+            if (template.skills && Array.isArray(template.skills) && template.skills.length > 0) {
+                const skillsData = template.skills.map(skill => {
+                    if (typeof skill === 'string') {
+                        return { name: skill, target: 10 };
+                    }
+                    return {
+                        name: skill.name || '',
+                        target: skill.target || 10
+                    };
+                }).filter(skill => skill.name);
                 
-                skillsList = `
-                    <div class="template-skills">
-                        <h4>🎯 Skills you'll develop:</h4>
-                        <ul>
-                            ${skillsData.map(skill => 
-                                `<li>${skillEmojis[skill.name] || '🎯'} ${skill.name} (Target: ${skill.target} hrs)</li>`
-                            ).join('')}
-                        </ul>
-                    </div>
-                `;
-            } else if (template.financial && template.financial.length > 0) {
-                const financialData = template.financial.map(goal => ({
-                    name: goal.name || goal,
-                    target: goal.target || 1000
-                }));
+                if (skillsData.length > 0) {
+                    skillsList = `
+                        <div class="template-skills">
+                            <h4>🎯 Skills you'll develop:</h4>
+                            <ul>
+                                ${skillsData.map(skill => 
+                                    `<li>${skillEmojis[skill.name] || '🎯'} ${skill.name} (Target: ${skill.target} hrs)</li>`
+                                ).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
+            } else if (template.financial && Array.isArray(template.financial) && template.financial.length > 0) {
+                const financialData = template.financial.map(goal => {
+                    if (typeof goal === 'string') {
+                        return { name: goal, target: 1000 };
+                    }
+                    return {
+                        name: goal.name || '',
+                        target: goal.target || 1000
+                    };
+                }).filter(goal => goal.name);
                 
-                skillsList = `
-                    <div class="template-skills">
-                        <h4>💰 Financial Goals:</h4>
-                        <ul>
-                            ${financialData.map(goal => 
-                                `<li>💰 ${goal.name} (Target: £${goal.target.toLocaleString()})</li>`
-                            ).join('')}
-                        </ul>
-                    </div>
-                `;
+                if (financialData.length > 0) {
+                    skillsList = `
+                        <div class="template-skills">
+                            <h4>💰 Financial Goals:</h4>
+                            <ul>
+                                ${financialData.map(goal => 
+                                    `<li>💰 ${goal.name} (Target: £${goal.target.toLocaleString()})</li>`
+                                ).join('')}
+                            </ul>
+                        </div>
+                    `;
+                }
             }
             
             card.innerHTML = `
