@@ -1,5 +1,84 @@
 import { playMenuSound, playLevelUpSound, playVictorySound } from './sounds.js';
 
+// Fun facts and progression milestones for skills
+const SKILL_FACTS = {
+    // Sports
+    'Tennis': [
+        'Did you know? Just 1 hour of tennis can burn up to 600 calories!',
+        'Playing tennis for 3 hours a week reduces the risk of heart disease by 56%.',
+        'Tennis players make around 4 decisions per second during points.',
+        'You\'re developing great hand-eye coordination and reflexes!',
+        'Your footwork and agility are noticeably improving!'
+    ],
+    'BJJ': [
+        'BJJ was developed by the Gracie family in Brazil in the early 20th century.',
+        'One hour of BJJ can burn between 400-800 calories!',
+        'Regular BJJ practice improves flexibility, balance, and core strength.',
+        'Your understanding of leverage and body mechanics is growing!',
+        'You\'re building both physical and mental resilience!'
+    ],
+    'Cycling': [
+        'Cycling for 30 minutes a day can reduce your risk of heart disease by 50%!',
+        'Regular cyclists typically have the fitness level of someone 10 years younger.',
+        'Cycling is one of the most efficient forms of human-powered transportation.',
+        'Your cardiovascular endurance is steadily improving!',
+        'You\'re building sustainable, low-impact fitness habits!'
+    ],
+    'Skiing': [
+        'Skiing can burn up to 400 calories per hour!',
+        'Skiing improves balance, core strength, and proprioception.',
+        'Regular skiing strengthens all major muscle groups.',
+        'Your balance and coordination are getting better!',
+        'You\'re mastering the art of reading terrain!'
+    ],
+    'Padel': [
+        'Padel is one of the fastest-growing sports worldwide!',
+        'Padel combines elements of tennis and squash for a unique workout.',
+        'A typical padel match can burn 400-600 calories.',
+        'Your strategic thinking in enclosed spaces is improving!',
+        'Your wall play technique is getting sharper!'
+    ],
+    'Spanish': [
+        'Spanish is the world\'s second-most spoken language by native speakers!',
+        'Learning a new language can delay the onset of dementia by up to 4.5 years.',
+        'Being bilingual improves decision-making skills and multitasking abilities.',
+        'Your vocabulary and grammar understanding are expanding!',
+        'You\'re developing natural language patterns!'
+    ],
+    'Pilates': [
+        'Pilates was developed by Joseph Pilates during World War I.',
+        'Regular Pilates practice can significantly improve posture and core strength.',
+        'Pilates helps prevent injuries by improving muscle balance.',
+        'Your core strength and stability are increasing!',
+        'Your posture and body awareness are improving!'
+    ],
+    'Cooking': [
+        'Cooking at home can reduce calorie consumption by 50-70%!',
+        'People who cook at home consume less sugar and processed foods.',
+        'Cooking skills are associated with better dietary quality.',
+        'Your knife skills and timing are getting better!',
+        'You\'re developing a refined palate!'
+    ]
+};
+
+// Generic facts for any new skills
+const GENERIC_SKILL_FACTS = [
+    'Consistent practice is key to mastery!',
+    'It takes about 10,000 hours to become an expert in any field.',
+    'Learning new skills strengthens neural connections in your brain.',
+    'You\'re making great progress!',
+    'Keep up the momentum - you\'re doing great!'
+];
+
+// Financial goal facts
+const FINANCIAL_FACTS = [
+    'Regular saving is a key habit of financially successful people.',
+    'Every step toward financial freedom counts!',
+    'You\'re building strong financial habits!',
+    'Financial discipline is a valuable life skill.',
+    'You\'re getting closer to your financial goals!'
+];
+
 // Data storage
 let skills = [];
 let financialGoals = [];
@@ -173,8 +252,15 @@ function renderProgressBar(container, item, isFinancial = false) {
     const percentage = (item.current / item.target) * 100;
     const mastered = isMastered(item.current, item.target);
     
+    // Get previous progress if element exists
+    const existingElement = container.querySelector(`[data-goal-id="${item.id}"]`);
+    const previousPercentage = existingElement ? 
+        (existingElement.querySelector('.progress-fill')?.style.width || '0%') :
+        '0%';
+    
     const div = document.createElement('div');
     div.className = 'progress-container' + (mastered ? ' mastered' : '');
+    div.dataset.goalId = item.id;
     
     const value = isFinancial ? 
         `${formatCurrency(item.current)}/${formatCurrency(item.target)}` :
@@ -185,6 +271,9 @@ function renderProgressBar(container, item, isFinancial = false) {
     const prediction = calculatePrediction(item);
 
     const emoji = !isFinancial ? skillEmojis[item.name] || '🎯' : '💰';
+    // Parse previous percentage for milestone detection
+    const prevPercentage = parseFloat(previousPercentage) || 0;
+
     div.innerHTML = `
         <div class="progress-label">
             <span>${emoji} ${item.name} (Lv. ${item.level})</span>
@@ -199,6 +288,29 @@ function renderProgressBar(container, item, isFinancial = false) {
             <span>📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>
         </div>
     `;
+
+    // Play celebration sound if reaching 100%
+    if (percentage >= 100 && prevPercentage < 100) {
+        playVictorySound().catch(e => console.warn('Could not play victory sound:', e));
+        showFunFact(item.name, 'Congratulations! You\'ve mastered this skill! 🏆', 100, isFinancial);
+    }
+
+    // Show fun fact at certain milestones (25%, 50%, 75%, 100%)
+    const milestones = [25, 50, 75];
+    const crossedMilestone = milestones.find(m => percentage >= m && prevPercentage < m);
+
+    if (crossedMilestone) {
+        let fact;
+        if (isFinancial) {
+            fact = FINANCIAL_FACTS[Math.floor(Math.random() * FINANCIAL_FACTS.length)];
+        } else {
+            const facts = SKILL_FACTS[item.name] || GENERIC_SKILL_FACTS;
+            fact = facts[Math.floor(Math.random() * facts.length)];
+        }
+        showFunFact(item.name, fact, crossedMilestone, isFinancial);
+        // Play level up sound for non-100% milestones
+        playLevelUpSound().catch(e => console.warn('Could not play level up sound:', e));
+    }
 
     // Add click handler to edit
     div.addEventListener('click', (event) => {
@@ -458,6 +570,43 @@ function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
     window.location.href = 'login.html';
+}
+
+// Show fun fact popup
+function showFunFact(name, fact, milestone, isFinancial = false) {
+    const popup = document.createElement('div');
+    popup.className = 'fun-fact-popup';
+    
+    // Get appropriate emoji based on type and milestone
+    let emoji = '🎉';
+    if (milestone >= 100) {
+        emoji = '🏆';
+    } else if (milestone >= 75) {
+        emoji = '🌟';
+    } else if (milestone >= 50) {
+        emoji = '💪';
+    } else if (milestone >= 25) {
+        emoji = '🎯';
+    }
+    
+    popup.innerHTML = `
+        <div class="fun-fact-content">
+            <h3>${emoji} ${name} Progress! (${milestone}% Complete)</h3>
+            <p>${fact}</p>
+            <button class="btn" onclick="this.parentElement.parentElement.remove()">Got it!</button>
+        </div>
+    `;
+    document.body.appendChild(popup);
+    
+    // Auto-remove after 10 seconds
+    const timeoutId = setTimeout(() => popup.remove(), 10000);
+    
+    // Clear timeout if popup is manually closed
+    popup.addEventListener('click', (e) => {
+        if (e.target.tagName === 'BUTTON') {
+            clearTimeout(timeoutId);
+        }
+    });
 }
 
 // Initialize

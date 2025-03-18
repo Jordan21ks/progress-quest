@@ -265,7 +265,11 @@ def logout():
 def get_templates():
     return jsonify({
         'templates': [
-            {'id': key, 'name': value['name']} 
+            {
+                'id': key,
+                'name': value['name'],
+                'skills': value.get('skills', [])
+            } 
             for key, value in TEMPLATES.items()
         ]
     })

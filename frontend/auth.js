@@ -36,18 +36,26 @@ async function loadTemplates() {
             const card = document.createElement('div');
             card.className = 'template-card';
             card.dataset.template = template.id;
+            
+            let skillsList = '';
+            if (template.skills && template.skills.length > 0) {
+                skillsList = `
+                    <div class="template-skills">
+                        <h4>Skills you'll develop:</h4>
+                        <ul>
+                            ${template.skills.map(skill => `<li>${skill.name}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+            
             card.innerHTML = `
                 <h3>${template.name}</h3>
-                <ul>
-                    <li>Start your journey</li>
-                    <li>Track your progress</li>
-                    <li>Level up your skills</li>
-                </ul>
+                ${skillsList}
             `;
             
             // Add click handler
             card.addEventListener('click', () => {
-                playMenuSound();
                 document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
                 selectedTemplate = template.id;
