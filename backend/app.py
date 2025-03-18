@@ -99,9 +99,13 @@ def register():
     if User.query.filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 400
         
-    # Simple password validation
-    if not password or len(password) < 6:
-        return jsonify({'error': 'Password must be at least 6 characters long'}), 400
+    # Password validation
+    if not password or len(password) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters long'}), 400
+    
+    # Check if password contains both letters and numbers
+    if not any(c.isalpha() for c in password) or not any(c.isdigit() for c in password):
+        return jsonify({'error': 'Password must contain both letters and numbers'}), 400
         
     user = User(username=username, password_hash=generate_password_hash(password))
     db.session.add(user)
