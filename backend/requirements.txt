@@ -22,6 +22,3 @@ MarkupSafe==2.0.1
 
 # Production Database
 psycopg2-binary==2.9.1
-
-# Dynamic Facts
-duckduckgo-search==3.9.3
