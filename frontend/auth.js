@@ -1,10 +1,9 @@
-import { playMenuSound, playVictorySound } from './sounds.js';
+import { playVictorySound } from './sounds.js';
 
 // Handle tab switching
 const tabs = document.querySelectorAll('.auth-tab');
 tabs.forEach(tab => {
     tab.addEventListener('click', () => {
-        playMenuSound();
         const targetForm = tab.dataset.tab === 'login' ? 'loginForm' : 'registerForm';
         
         // Update active tab
@@ -80,7 +79,6 @@ document.addEventListener('DOMContentLoaded', loadTemplates);
 // Handle login
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    playMenuSound();
     
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
@@ -115,7 +113,6 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
 // Handle registration
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    playMenuSound();
     
     const errorDiv = document.getElementById('register-error');
     
