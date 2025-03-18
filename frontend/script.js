@@ -428,7 +428,6 @@ function showEditForm(item, type, event) {
 
 // Hide modal
 export function hideModal() {
-    playMenuSound();
     document.getElementById('goalModal').style.display = 'none';
 }
 
@@ -446,7 +445,6 @@ function addHistoryEntry(item, value) {
 // Handle form submission
 export async function handleFormSubmit(event) {
     event.preventDefault();
-    playMenuSound();
     
     const type = document.getElementById('goal-type').value;
     const name = document.getElementById('goal-name').value;
@@ -626,7 +624,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Set up logout handler
     document.getElementById('logoutBtn').addEventListener('click', (e) => {
         e.preventDefault();
-        playMenuSound();
         logout();
     });
     
@@ -634,21 +631,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     const addSkillBtn = document.getElementById('addSkillBtn');
     addSkillBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        playMenuSound();
         showAddForm('skill');
     });
     
     const addFinancialBtn = document.getElementById('addFinancialBtn');
     addFinancialBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        playMenuSound();
         showAddForm('financial');
     });
     
     // Set up cancel button
     document.getElementById('cancelBtn').addEventListener('click', (e) => {
         e.preventDefault();
-        playMenuSound();
         hideModal();
     });
     
@@ -660,8 +654,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
     
-    // Add hover sound effect to buttons
-    document.querySelectorAll('.btn').forEach(btn => {
-        btn.addEventListener('mouseenter', playMenuSound);
-    });
+
 });

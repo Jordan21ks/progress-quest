@@ -62,6 +62,24 @@
     </div>
 
     <!-- Load scripts in correct order -->
+    <script type="module">
+        import { handleFormSubmit, hideModal } from './script.js';
+        
+        // Set up form handlers
+        document.getElementById('goalForm').addEventListener('submit', handleFormSubmit);
+        document.getElementById('cancelBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            hideModal();
+        });
+        
+        // Close modal on outside click
+        window.addEventListener('click', (event) => {
+            const modal = document.getElementById('goalModal');
+            if (event.target === modal) {
+                hideModal();
+            }
+        });
+    </script>
     <script src="script.js" type="module"></script>
 </body>
 </html>
