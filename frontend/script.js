@@ -561,27 +561,27 @@ export async function handleFormSubmit(event) {
                 const progressPercentage = Math.round((current / target) * 100);
                 const oldProgressPercentage = Math.round((oldValue / target) * 100);
                 
-                // Show fun fact only at 25% and 75% milestones
+                // Show fun fact only after passing 25% and 75% milestones
                 const milestones = [25, 75];
                 const hitMilestone = milestones.find(milestone => 
-                    progressPercentage >= milestone && oldProgressPercentage < milestone
+                    progressPercentage > milestone && oldProgressPercentage <= milestone
                 );
                 
                 if (hitMilestone) {
                     if (type === 'skill') {
                         const facts = SKILL_FACTS[name] || SKILL_FACTS['Default'];
                         if (facts) {
-                            // Use specific fact index based on milestone (0 for 25%, 2 for 75%)
+                            // Use specific fact index based on milestone (0 for >25%, 2 for >75%)
                             const factIndex = hitMilestone === 25 ? 0 : 2;
                             const fact = facts[factIndex] || facts[0];
-                            showFunFact(name, fact, progressPercentage);
+                            showFunFact(name, fact);
                         }
                     } else {
                         const facts = SKILL_FACTS['Debt Repayment'];
                         if (facts) {
                             const factIndex = hitMilestone === 25 ? 0 : 2;
                             const fact = facts[factIndex] || facts[0];
-                            showFunFact(name, fact, progressPercentage, true);
+                            showFunFact(name, fact, true);
                         }
                     }
                 }
@@ -612,7 +612,7 @@ function logout() {
 }
 
 // Show fun fact popup
-function showFunFact(name, fact, milestone, isFinancial = false) {
+function showFunFact(name, fact, isFinancial = false) {
     // Remove any existing popups
     const existingPopups = document.querySelectorAll('.fun-fact-popup');
     existingPopups.forEach(popup => popup.remove());
@@ -620,19 +620,9 @@ function showFunFact(name, fact, milestone, isFinancial = false) {
     const popup = document.createElement('div');
     popup.className = 'fun-fact-popup';
     
-    // Get appropriate emoji based on milestone
-    let emoji;
-    if (milestone >= 75) {
-        emoji = '🌟';
-    } else if (milestone >= 25) {
-        emoji = '🎯';
-    } else {
-        emoji = '🎉';
-    }
-    
     popup.innerHTML = `
         <div class="fun-fact-content">
-            <h3>${emoji} ${name} Progress! (${milestone}% Complete)</h3>
+            <h3>🌟 ${name} Progress!</h3>
             <p>${fact}</p>
             <button class="btn" onclick="this.closest('.fun-fact-popup').remove()">Got it!</button>
         </div>
