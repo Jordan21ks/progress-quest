@@ -131,23 +131,34 @@ async function loadGoals() {
             }
         });
         
+        if (response.status === 401) {
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+            return;
+        }
+        
         const data = await response.json();
         
         if (!response.ok) {
             throw new Error(data.error || 'Failed to load your goals');
         }
         
-        // Update global arrays with defaults
-        skills = data.skills || [];
-        financialGoals = data.financial || [];
+        // Initialize arrays if undefined
+        if (!Array.isArray(skills)) skills = [];
+        if (!Array.isArray(financialGoals)) financialGoals = [];
+        
+        // Update with new data if available
+        if (data.skills) skills = data.skills;
+        if (data.financial) financialGoals = data.financial;
         
         // Render progress bars
         renderAll();
     } catch (error) {
         console.error('Error loading goals:', error);
-        // Only show alert if we have no goals loaded
-        if (!skills.length && !financialGoals.length) {
-            alert(error.message);
+        // Only show alert if we have no goals
+        if ((!Array.isArray(skills) || !skills.length) && 
+            (!Array.isArray(financialGoals) || !financialGoals.length)) {
+            alert(error.message || 'Failed to load goals');
         }
     }
 }
@@ -464,45 +475,52 @@ export async function handleFormSubmit(event) {
         const current = parseFloat(document.getElementById('goal-current').value);
         const deadline = document.getElementById('goal-deadline').value || null;
         
+        if (!name) {
+            throw new Error('Please enter a name');
+        }
+        
         if (isNaN(target) || isNaN(current)) {
-            alert('Please enter valid numbers');
-            return;
+            throw new Error('Please enter valid numbers');
         }
         
         const list = type === 'skill' ? skills : financialGoals;
         const existingIndex = list.findIndex(item => item.name === name);
+        
+        // Prepare request data
+        const requestData = {
+            name,
+            current,
+            target,
+            deadline,
+            type
+        };
+        
         if (existingIndex >= 0) {
-            // Update existing item
+            requestData.id = list[existingIndex].id;
             const oldValue = list[existingIndex].current;
-            const oldLevel = list[existingIndex].level;
-            const oldHistory = list[existingIndex].history;
-            
-            // Send update to backend
-            const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    id: list[existingIndex].id,
-                    name,
-                    current,
-                    target,
-                    deadline,
-                    type
-                })
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to update goal');
-            }
-            
-            const updatedGoal = await response.json();
-            
-            // Update local state
-            list[existingIndex] = updatedGoal;
+            const oldLevel = calculateLevel(oldValue, target);
+        }
+        
+        // Send to backend
+        const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to save goal');
+        }
+        
+        // Update local state
+        if (existingIndex >= 0) {
+            const oldValue = list[existingIndex].current;
+            list[existingIndex] = data;
             
             // Check for level up
             const wasMastered = isMastered(oldValue, target);
@@ -524,42 +542,16 @@ export async function handleFormSubmit(event) {
                 }
             }
         } else {
-            // Create new goal
-            const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    name,
-                    current,
-                    target,
-                    deadline,
-                    type
-                })
-            });
-            
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error || 'Failed to create goal');
-            }
-            
-            const newGoal = await response.json();
-            list.push(newGoal);
+            list.push(data);
         }
         
-        // Refresh display
+        // Update display and close modal
         renderAll();
-        hideModal();
-        // Update the display
-        renderAll();
-        
-        // Close the modal
         hideModal();
     } catch (error) {
-        console.error('Error updating goal:', error);
+        console.error('Error saving goal:', error);
         alert(error.message || 'Failed to save goal. Please try again.');
+        return;
     }
 }
 
