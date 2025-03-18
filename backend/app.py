@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": ["http://localhost:8080"], "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": ["https://experiencepoints.app", "http://experiencepoints.app", "http://localhost:8080"], "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_123')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///experience_points.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
