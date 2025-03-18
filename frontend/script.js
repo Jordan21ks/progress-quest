@@ -507,10 +507,10 @@ export async function handleFormSubmit(event) {
             type
         };
         
+        let oldValue = 0;
         if (existingIndex >= 0) {
             requestData.id = list[existingIndex].id;
-            const oldValue = list[existingIndex].current;
-            const oldLevel = calculateLevel(oldValue, target);
+            oldValue = list[existingIndex].current || 0;
         }
         
         // Send to backend
@@ -531,8 +531,11 @@ export async function handleFormSubmit(event) {
         
         // Update local state
         if (existingIndex >= 0) {
-            const oldValue = list[existingIndex].current;
-            list[existingIndex] = data;
+            // Update existing goal
+            list[existingIndex] = {
+                ...data,
+                history: list[existingIndex].history || []
+            };
             
             // Check for level up
             const wasMastered = isMastered(oldValue, target);
@@ -545,7 +548,7 @@ export async function handleFormSubmit(event) {
                 const oldProgressLevel = calculateLevel(oldValue, target);
                 const newProgressLevel = calculateLevel(current, target);
                 if (newProgressLevel > oldProgressLevel) {
-                    playLevelUpSound();
+                    playLevelUpSound().catch(e => console.warn('Could not play level up sound:', e));
                     const container = document.querySelector(`.progress-container[data-name="${name}"]`);
                     if (container) {
                         container.classList.add('level-up');
@@ -554,7 +557,11 @@ export async function handleFormSubmit(event) {
                 }
             }
         } else {
-            list.push(data);
+            // Add new goal
+            list.push({
+                ...data,
+                history: []
+            });
         }
         
         // Update display and close modal
