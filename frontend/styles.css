@@ -55,6 +55,16 @@ body {
   opacity: 0.7;
 }
 
+.error-message {
+  color: var(--ff-danger);
+  font-size: 0.8em;
+  margin-bottom: 15px;
+  padding: 10px;
+  border: 1px solid var(--ff-danger);
+  border-radius: 4px;
+  display: none;
+}
+
 h1 {
   color: var(--ff-crystal);
   text-shadow: 0 0 10px var(--ff-blue);

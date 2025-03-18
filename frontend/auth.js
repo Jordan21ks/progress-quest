@@ -55,10 +55,14 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             localStorage.setItem('username', username);
             window.location.href = '/';
         } else {
-            alert(data.error || 'Login failed');
+            const errorDiv = document.getElementById('login-error');
+            errorDiv.textContent = data.error || 'Login failed';
+            errorDiv.style.display = 'block';
         }
     } catch (error) {
-        alert('Connection error. Please try again.');
+        const errorDiv = document.getElementById('register-error');
+        errorDiv.textContent = 'Connection error. Please try again.';
+        errorDiv.style.display = 'block';
     }
 });
 
@@ -68,7 +72,9 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     playMenuSound();
     
     if (!selectedTemplate) {
-        alert('Please select a template to begin your journey!');
+        const errorDiv = document.getElementById('register-error');
+        errorDiv.textContent = 'Please select a template to begin your journey!';
+        errorDiv.style.display = 'block';
         return;
     }
     
@@ -92,9 +98,13 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
             localStorage.setItem('username', username);
             window.location.href = '/';
         } else {
-            alert(data.error || 'Registration failed');
+            const errorDiv = document.getElementById('register-error');
+            errorDiv.textContent = data.error || 'Registration failed';
+            errorDiv.style.display = 'block';
         }
     } catch (error) {
-        alert('Connection error. Please try again.');
+        const errorDiv = document.getElementById('register-error');
+        errorDiv.textContent = 'Connection error. Please try again.';
+        errorDiv.style.display = 'block';
     }
 });
