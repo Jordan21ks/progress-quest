@@ -1,5 +1,9 @@
 import { playLevelUpSound, playVictorySound } from './sounds.js';
 
+// Global arrays for skills and financial goals
+let skills = [];
+let financialGoals = [];
+
 // Fun facts and progression milestones for skills
 const SKILL_FACTS = {
     // Financial Wisdom
@@ -151,21 +155,24 @@ async function loadGoals() {
             throw new Error(data.error || 'Failed to load your goals');
         }
         
-        // Initialize arrays if undefined
-        if (!Array.isArray(skills)) skills = [];
-        if (!Array.isArray(financialGoals)) financialGoals = [];
-        
         // Update with new data if available
-        if (data.skills) skills = data.skills;
-        if (data.financial) financialGoals = data.financial;
+        if (Array.isArray(data.skills)) skills = data.skills;
+        if (Array.isArray(data.financial)) financialGoals = data.financial;
+        
+        // Ensure history arrays exist
+        skills.forEach(skill => {
+            if (!Array.isArray(skill.history)) skill.history = [];
+        });
+        financialGoals.forEach(goal => {
+            if (!Array.isArray(goal.history)) goal.history = [];
+        });
         
         // Render progress bars
         renderAll();
     } catch (error) {
         console.error('Error loading goals:', error);
         // Only show alert if we have no goals
-        if ((!Array.isArray(skills) || !skills.length) && 
-            (!Array.isArray(financialGoals) || !financialGoals.length)) {
+        if (skills.length === 0 && financialGoals.length === 0) {
             alert(error.message || 'Failed to load goals');
         }
     }
@@ -548,7 +555,8 @@ export async function handleFormSubmit(event) {
                 const oldProgressLevel = calculateLevel(oldValue, target);
                 const newProgressLevel = calculateLevel(current, target);
                 if (newProgressLevel > oldProgressLevel) {
-                    playLevelUpSound().catch(e => console.warn('Could not play level up sound:', e));
+                    // Play sound and show animation
+                    playLevelUpSound(); // No need to await or catch, function handles errors internally
                     const container = document.querySelector(`.progress-container[data-name="${name}"]`);
                     if (container) {
                         container.classList.add('level-up');

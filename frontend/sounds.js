@@ -16,17 +16,29 @@ levelUpSound.volume = 0.5;
 victorySound.volume = 0.7;
 
 // Export sound functions
-export function playMenuSound() {
-    menuSound.currentTime = 0;
-    menuSound.play().catch(e => console.log('Menu sound failed:', e));
+export async function playMenuSound() {
+    try {
+        menuSound.currentTime = 0;
+        await menuSound.play();
+    } catch (e) {
+        console.log('Menu sound failed:', e);
+    }
 }
 
-export function playLevelUpSound() {
-    levelUpSound.currentTime = 0;
-    levelUpSound.play().catch(e => console.log('Level up sound failed:', e));
+export async function playLevelUpSound() {
+    try {
+        levelUpSound.currentTime = 0;
+        await levelUpSound.play();
+    } catch (e) {
+        console.log('Level up sound failed:', e);
+    }
 }
 
-export function playVictorySound() {
-    victorySound.currentTime = 0;
-    victorySound.play().catch(e => console.log('Victory sound failed:', e));
+export async function playVictorySound() {
+    try {
+        victorySound.currentTime = 0;
+        await victorySound.play();
+    } catch (e) {
+        console.log('Victory sound failed:', e);
+    }
 }
