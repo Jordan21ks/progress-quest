@@ -1,5 +1,39 @@
 import { playVictorySound } from './sounds.js';
 
+// Skill emojis mapping
+const skillEmojis = {
+    // Sports
+    'Tennis': '🏨',
+    'BJJ': '🥋',
+    'Cycling': '🚴',
+    'Skiing': '⛷',
+    'Padel': '🎾',
+    'Squash': '🎾',
+    'Badminton': '🏸',
+    'Hyrox Training': '🏃',
+    
+    // Cardio
+    '1km Running': '🏃',
+    'Skierg': '⛷',
+    'Row': '🚣',
+    'Sled Push': '💪',
+    'Burpee Broad Jumps': '🤸',
+    'Sandbag Lunges': '🏋',
+    'Sled Pull': '💪',
+    'Wall Balls': '🏐',
+    'Farmers Carry': '🏋',
+    
+    // Languages
+    'Spanish': '🇪🇸',
+    'French': '🇫🇷',
+    'Japanese': '🇯🇵',
+    
+    // Other
+    'Pilates': '🧘',
+    'Reformer Pilates': '🧘',
+    'Cooking': '🍳'
+};
+
 // Handle tab switching
 const tabs = document.querySelectorAll('.auth-tab');
 tabs.forEach(tab => {
@@ -40,9 +74,22 @@ async function loadTemplates() {
             if (template.skills && template.skills.length > 0) {
                 skillsList = `
                     <div class="template-skills">
-                        <h4>Skills you'll develop:</h4>
+                        <h4>🎯 Skills you'll develop:</h4>
                         <ul>
-                            ${template.skills.map(skill => `<li>${skill.name}</li>`).join('')}
+                            ${template.skills.map(skill => 
+                                `<li>${skillEmojis[skill.name] || '🎯'} ${skill.name} (Target: ${skill.target} hrs)</li>`
+                            ).join('')}
+                        </ul>
+                    </div>
+                `;
+            } else if (template.financial && template.financial.length > 0) {
+                skillsList = `
+                    <div class="template-skills">
+                        <h4>💰 Financial Goals:</h4>
+                        <ul>
+                            ${template.financial.map(goal => 
+                                `<li>💰 ${goal.name} (Target: £${goal.target.toLocaleString()})</li>`
+                            ).join('')}
                         </ul>
                     </div>
                 `;
