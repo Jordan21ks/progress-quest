@@ -93,8 +93,15 @@ def register():
     password = data.get('password')
     template = data.get('template')
     
+    if not username or len(username) < 3:
+        return jsonify({'error': 'Username must be at least 3 characters long'}), 400
+        
     if User.query.filter_by(username=username).first():
         return jsonify({'error': 'Username already exists'}), 400
+        
+    # Simple password validation
+    if not password or len(password) < 6:
+        return jsonify({'error': 'Password must be at least 6 characters long'}), 400
         
     user = User(username=username, password_hash=generate_password_hash(password))
     db.session.add(user)
