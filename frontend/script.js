@@ -120,24 +120,35 @@ async function checkAuth() {
 async function loadGoals() {
     try {
         const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = 'login.html';
+            return;
+        }
+        
         const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
         
-        if (response.status === 401) {
-            window.location.href = 'login.html';
-            return;
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to load your goals');
         }
         
-        const data = await response.json();
-        skills = data.skills;
-        financialGoals = data.financial;
+        // Update global arrays with defaults
+        skills = data.skills || [];
+        financialGoals = data.financial || [];
+        
+        // Render progress bars
         renderAll();
     } catch (error) {
-        console.error('Failed to load goals:', error);
-        alert('Failed to load your goals. Please try again.');
+        console.error('Error loading goals:', error);
+        // Only show alert if we have no goals loaded
+        if (!skills.length && !financialGoals.length) {
+            alert(error.message);
+        }
     }
 }
 
@@ -446,26 +457,20 @@ function addHistoryEntry(item, value) {
 export async function handleFormSubmit(event) {
     event.preventDefault();
     
-    const type = document.getElementById('goal-type').value;
-    const name = document.getElementById('goal-name').value;
-    const target = parseFloat(document.getElementById('goal-target').value);
-    const current = parseFloat(document.getElementById('goal-current').value);
-    const deadline = document.getElementById('goal-deadline').value;
-    
-    if (isNaN(target) || isNaN(current)) {
-        alert('Please enter valid numbers');
-        return;
-    }
-    
-    if (!deadline) {
-        alert('Please select a deadline');
-        return;
-    }
-    
-    const list = type === 'skill' ? skills : financialGoals;
-    const existingIndex = list.findIndex(item => item.name === name);
-    
     try {
+        const type = document.getElementById('goal-type').value;
+        const name = document.getElementById('goal-name').value;
+        const target = parseFloat(document.getElementById('goal-target').value);
+        const current = parseFloat(document.getElementById('goal-current').value);
+        const deadline = document.getElementById('goal-deadline').value || null;
+        
+        if (isNaN(target) || isNaN(current)) {
+            alert('Please enter valid numbers');
+            return;
+        }
+        
+        const list = type === 'skill' ? skills : financialGoals;
+        const existingIndex = list.findIndex(item => item.name === name);
         if (existingIndex >= 0) {
             // Update existing item
             const oldValue = list[existingIndex].current;
@@ -547,17 +552,15 @@ export async function handleFormSubmit(event) {
         // Refresh display
         renderAll();
         hideModal();
+        // Update the display
+        renderAll();
+        
+        // Close the modal
+        hideModal();
     } catch (error) {
         console.error('Error updating goal:', error);
         alert(error.message || 'Failed to save goal. Please try again.');
-        return;
     }
-    
-    // Update the display
-    renderAll();
-    
-    // Close the modal
-    hideModal();
 }
 
 // Handle logout
