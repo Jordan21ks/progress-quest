@@ -14,6 +14,10 @@ tabs.forEach(tab => {
         // Show correct form
         document.getElementById('loginForm').style.display = targetForm === 'loginForm' ? 'block' : 'none';
         document.getElementById('registerForm').style.display = targetForm === 'registerForm' ? 'block' : 'none';
+        
+        // Clear error messages
+        document.getElementById('login-error').style.display = 'none';
+        document.getElementById('register-error').style.display = 'none';
     });
 });
 
@@ -27,6 +31,9 @@ templateCards.forEach(card => {
         templateCards.forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
         selectedTemplate = card.dataset.template;
+        
+        // Clear error message
+        document.getElementById('register-error').style.display = 'none';
     });
 });
 
@@ -37,6 +44,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
+    const errorDiv = document.getElementById('login-error');
     
     try {
         const response = await fetch('https://experience-points-backend.onrender.com/api/login', {
@@ -53,14 +61,12 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             playVictorySound();
             localStorage.setItem('token', data.token);
             localStorage.setItem('username', data.user.username);
-            window.location.href = '/';
+            window.location.href = 'index.html';
         } else {
-            const errorDiv = document.getElementById('login-error');
             errorDiv.textContent = data.error || 'Login failed';
             errorDiv.style.display = 'block';
         }
     } catch (error) {
-        const errorDiv = document.getElementById('register-error');
         errorDiv.textContent = 'Connection error. Please try again.';
         errorDiv.style.display = 'block';
     }
@@ -71,8 +77,9 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     e.preventDefault();
     playMenuSound();
     
+    const errorDiv = document.getElementById('register-error');
+    
     if (!selectedTemplate) {
-        const errorDiv = document.getElementById('register-error');
         errorDiv.textContent = 'Please select a template to begin your journey!';
         errorDiv.style.display = 'block';
         return;
@@ -96,14 +103,12 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
             playVictorySound();
             localStorage.setItem('token', data.token);
             localStorage.setItem('username', data.user.username);
-            window.location.href = '/';
+            window.location.href = 'index.html';
         } else {
-            const errorDiv = document.getElementById('register-error');
             errorDiv.textContent = data.error || 'Registration failed';
             errorDiv.style.display = 'block';
         }
     } catch (error) {
-        const errorDiv = document.getElementById('register-error');
         errorDiv.textContent = 'Connection error. Please try again.';
         errorDiv.style.display = 'block';
     }
