@@ -1,4 +1,4 @@
-import { playMenuSound, playLevelUpSound, playVictorySound } from './sounds.js';
+import { playLevelUpSound, playVictorySound } from './sounds.js';
 
 // Fun facts and progression milestones for skills
 const SKILL_FACTS = {
@@ -314,12 +314,8 @@ function renderProgressBar(container, item, isFinancial = false) {
 
     // Add click handler to edit
     div.addEventListener('click', (event) => {
-        playMenuSound();
         showEditForm(item, isFinancial ? 'financial' : 'skill', event);
     });
-
-    // Add hover effect
-    div.addEventListener('mouseenter', playMenuSound);
 
     container.appendChild(div);
 }
@@ -574,6 +570,10 @@ function logout() {
 
 // Show fun fact popup
 function showFunFact(name, fact, milestone, isFinancial = false) {
+    // Remove any existing popups
+    const existingPopups = document.querySelectorAll('.fun-fact-popup');
+    existingPopups.forEach(popup => popup.remove());
+    
     const popup = document.createElement('div');
     popup.className = 'fun-fact-popup';
     
@@ -593,13 +593,17 @@ function showFunFact(name, fact, milestone, isFinancial = false) {
         <div class="fun-fact-content">
             <h3>${emoji} ${name} Progress! (${milestone}% Complete)</h3>
             <p>${fact}</p>
-            <button class="btn" onclick="this.parentElement.parentElement.remove()">Got it!</button>
+            <button class="btn" onclick="this.closest('.fun-fact-popup').remove()">Got it!</button>
         </div>
     `;
     document.body.appendChild(popup);
     
     // Auto-remove after 10 seconds
-    const timeoutId = setTimeout(() => popup.remove(), 10000);
+    const timeoutId = setTimeout(() => {
+        if (popup && document.body.contains(popup)) {
+            popup.remove();
+        }
+    }, 10000);
     
     // Clear timeout if popup is manually closed
     popup.addEventListener('click', (e) => {
