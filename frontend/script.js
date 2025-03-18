@@ -556,6 +556,35 @@ export async function handleFormSubmit(event) {
                         setTimeout(() => container.classList.remove('level-up'), 2000);
                     }
                 }
+                
+                // Calculate progress percentage
+                const progressPercentage = Math.round((current / target) * 100);
+                const oldProgressPercentage = Math.round((oldValue / target) * 100);
+                
+                // Show fun fact only at 25% and 75% milestones
+                const milestones = [25, 75];
+                const hitMilestone = milestones.find(milestone => 
+                    progressPercentage >= milestone && oldProgressPercentage < milestone
+                );
+                
+                if (hitMilestone) {
+                    if (type === 'skill') {
+                        const facts = SKILL_FACTS[name] || SKILL_FACTS['Default'];
+                        if (facts) {
+                            // Use specific fact index based on milestone (0 for 25%, 2 for 75%)
+                            const factIndex = hitMilestone === 25 ? 0 : 2;
+                            const fact = facts[factIndex] || facts[0];
+                            showFunFact(name, fact, progressPercentage);
+                        }
+                    } else {
+                        const facts = SKILL_FACTS['Debt Repayment'];
+                        if (facts) {
+                            const factIndex = hitMilestone === 25 ? 0 : 2;
+                            const fact = facts[factIndex] || facts[0];
+                            showFunFact(name, fact, progressPercentage, true);
+                        }
+                    }
+                }
             }
         } else {
             // Add new goal
@@ -591,16 +620,14 @@ function showFunFact(name, fact, milestone, isFinancial = false) {
     const popup = document.createElement('div');
     popup.className = 'fun-fact-popup';
     
-    // Get appropriate emoji based on type and milestone
-    let emoji = '🎉';
-    if (milestone >= 100) {
-        emoji = '🏆';
-    } else if (milestone >= 75) {
+    // Get appropriate emoji based on milestone
+    let emoji;
+    if (milestone >= 75) {
         emoji = '🌟';
-    } else if (milestone >= 50) {
-        emoji = '💪';
     } else if (milestone >= 25) {
         emoji = '🎯';
+    } else {
+        emoji = '🎉';
     }
     
     popup.innerHTML = `
