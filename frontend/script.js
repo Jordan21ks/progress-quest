@@ -420,12 +420,9 @@ export async function handleFormSubmit(event) {
 
 // Handle logout
 function logout() {
-    fetch('http://localhost:5000/api/logout', {
-        credentials: 'include'
-    }).then(() => {
-        localStorage.removeItem('username');
-        window.location.href = '/login.html';
-    });
+    localStorage.removeItem('token');
+    localStorage.removeItem('username');
+    window.location.href = '/login.html';
 }
 
 // Initialize
