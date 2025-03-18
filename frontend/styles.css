@@ -18,7 +18,7 @@ body {
   color: var(--ff-text);
   font-family: 'Press Start 2P', monospace;
   margin: 0;
-  padding: 20px;
+  padding: 10px;
   min-height: 100vh;
   line-height: 1.6;
   background-image: linear-gradient(45deg, rgba(0,0,48,0.3) 25%, transparent 25%, transparent 75%, rgba(0,0,48,0.3) 75%, rgba(0,0,48,0.3)), 
@@ -26,25 +26,45 @@ body {
   background-size: 60px 60px;
   background-position: 0 0, 30px 30px;
   animation: bgScroll 60s linear infinite;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 20px;
+  padding: 15px;
   background: var(--ff-menu-bg);
   border: 2px solid var(--ff-border);
   border-radius: 10px;
   box-shadow: 0 0 20px rgba(74, 144, 226, 0.2);
+  box-sizing: border-box;
 }
 
 .header {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  margin-bottom: 40px;
-  padding-bottom: 20px;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
   border-bottom: 2px solid var(--ff-border);
+  text-align: center;
+}
+
+.header h1 {
+  font-size: 1.2em;
+  margin-bottom: 15px;
+  white-space: nowrap;
+}
+
+@media (min-width: 768px) {
+  .header {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  
+  .header h1 {
+    margin-bottom: 0;
+  }
 }
 
 .password-requirements {
@@ -155,10 +175,15 @@ h1 {
   background: var(--ff-menu-bg);
   color: var(--ff-crystal);
   border: 2px solid var(--ff-border);
-  padding: 10px 20px;
+  padding: 12px 24px;
   font-family: 'Press Start 2P', monospace;
   cursor: pointer;
   transition: all 0.3s ease;
+  touch-action: manipulation;
+  min-height: 44px;
+  min-width: 44px;
+  font-size: 14px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .btn:hover {
@@ -172,13 +197,18 @@ h1 {
   background: var(--ff-menu-bg);
   border: 2px solid var(--ff-border);
   border-radius: 10px;
-  padding: 20px;
+  padding: 15px;
   position: fixed;
-  left: 20px;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
   max-width: 300px;
   z-index: 1000;
   box-shadow: 0 0 20px var(--ff-crystal);
   backdrop-filter: blur(5px);
+  max-height: 90vh;
+  overflow-y: auto;
 }
 
 .modal-header {
@@ -198,7 +228,11 @@ h1 {
 
 .form-group input {
   width: 100%;
-  padding: 10px;
+  padding: 12px;
+  font-size: 16px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  min-height: 44px;
   background: rgba(0, 0, 48, 0.5);
   border: 1px solid var(--ff-border);
   color: var(--ff-text);

@@ -422,7 +422,7 @@ export async function handleFormSubmit(event) {
 function logout() {
     localStorage.removeItem('token');
     localStorage.removeItem('username');
-    window.location.href = '/login.html';
+    window.location.href = 'login.html';
 }
 
 // Initialize
@@ -436,17 +436,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('goalForm').addEventListener('submit', handleFormSubmit);
     
     // Set up logout handler
-    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('logoutBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        playMenuSound();
+        logout();
+    });
     
     // Set up add buttons
     const addSkillBtn = document.getElementById('addSkillBtn');
-    addSkillBtn.addEventListener('click', () => showAddForm('skill'));
+    addSkillBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        playMenuSound();
+        showAddForm('skill');
+    });
     
     const addFinancialBtn = document.getElementById('addFinancialBtn');
-    addFinancialBtn.addEventListener('click', () => showAddForm('financial'));
+    addFinancialBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        playMenuSound();
+        showAddForm('financial');
+    });
     
     // Set up cancel button
-    document.getElementById('cancelBtn').addEventListener('click', hideModal);
+    document.getElementById('cancelBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        playMenuSound();
+        hideModal();
+    });
     
     // Close modal on outside click
     window.addEventListener('click', (event) => {
