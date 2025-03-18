@@ -10,7 +10,7 @@ async function checkAuth() {
     const username = localStorage.getItem('username');
     
     if (!token || !username) {
-        window.location.href = '/login.html';
+        window.location.href = 'login.html';
         return false;
     }
     
@@ -24,7 +24,7 @@ async function checkAuth() {
         if (response.status === 401) {
             localStorage.removeItem('token');
             localStorage.removeItem('username');
-            window.location.href = '/login.html';
+            window.location.href = 'login.html';
             return false;
         }
         
@@ -32,7 +32,7 @@ async function checkAuth() {
         return true;
     } catch (error) {
         console.error('Auth check failed:', error);
-        window.location.href = '/login.html';
+        window.location.href = 'login.html';
         return false;
     }
 }
@@ -48,7 +48,7 @@ async function loadGoals() {
         });
         
         if (response.status === 401) {
-            window.location.href = '/login.html';
+            window.location.href = 'login.html';
             return;
         }
         
@@ -342,8 +342,8 @@ export async function handleFormSubmit(event) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
-                credentials: 'include',
                 body: JSON.stringify({
                     id: list[existingIndex].id,
                     name,
@@ -389,8 +389,8 @@ export async function handleFormSubmit(event) {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
                 },
-                credentials: 'include',
                 body: JSON.stringify({ name, current, target, deadline, type })
             });
             
