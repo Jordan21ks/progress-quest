@@ -52,7 +52,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
         
         if (response.ok) {
             playVictorySound();
-            localStorage.setItem('username', username);
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('username', data.user.username);
             window.location.href = '/';
         } else {
             const errorDiv = document.getElementById('login-error');
@@ -95,7 +96,8 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
         
         if (response.ok) {
             playVictorySound();
-            localStorage.setItem('username', username);
+            localStorage.setItem('token', data.token);
+            localStorage.setItem('username', data.user.username);
             window.location.href = '/';
         } else {
             const errorDiv = document.getElementById('register-error');

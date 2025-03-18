@@ -1,36 +1,47 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from datetime import datetime, timedelta
+import jwt
+from functools import wraps
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, resources={r"/api/*": {
+CORS(app, resources={r"/api/*": {
     "origins": ["https://experiencepoints.app", "http://experiencepoints.app", "http://localhost:8080"],
     "methods": ["GET", "POST", "OPTIONS"],
-    "allow_headers": ["Content-Type"],
-    "expose_headers": ["Set-Cookie"],
-    "supports_credentials": True
+    "allow_headers": ["Content-Type", "Authorization"]
 }})
 
-# Session configuration
+# Configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_123')
-app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookie over HTTPS
-app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-domain cookies
-app.config['SESSION_COOKIE_DOMAIN'] = '.onrender.com'  # Allow cookies for all subdomains
-
-# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///experience_points.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
+
+# Token required decorator
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization'].replace('Bearer ', '')
+        
+        if not token:
+            return jsonify({'error': 'Token is missing'}), 401
+        
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            current_user = User.query.get(data['user_id'])
+        except:
+            return jsonify({'error': 'Token is invalid'}), 401
+            
+        return f(current_user, *args, **kwargs)
 
 # Models
-class User(UserMixin, db.Model):
+class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
@@ -171,22 +182,24 @@ def login():
     user = User.query.filter_by(username=data.get('username')).first()
     
     if user and check_password_hash(user.password_hash, data.get('password')):
-        login_user(user, remember=True)
+        token = jwt.encode({
+            'user_id': user.id,
+            'exp': datetime.utcnow() + timedelta(days=7)
+        }, app.config['SECRET_KEY'], algorithm='HS256')
+        
         return jsonify({
             'message': 'Login successful',
+            'token': token,
             'user': {
                 'id': user.id,
                 'username': user.username
             }
         })
-        return jsonify({'message': 'Login successful'})
     
     return jsonify({'error': 'Invalid username or password'}), 401
 
 @app.route('/api/logout')
-@login_required
 def logout():
-    logout_user()
     return jsonify({'message': 'Logout successful'})
 
 @app.route('/api/templates')
@@ -199,8 +212,8 @@ def get_templates():
     })
 
 @app.route('/api/goals')
-@login_required
-def get_goals():
+@token_required
+def get_goals(current_user):
     goals = current_user.goals
     return jsonify({
         'skills': [goal_to_dict(g) for g in goals if g.type == 'skill'],
@@ -208,8 +221,8 @@ def get_goals():
     })
 
 @app.route('/api/goals', methods=['POST'])
-@login_required
-def update_goal():
+@token_required
+def update_goal(current_user):
     data = request.get_json()
     goal = Goal.query.get(data.get('id'))
     

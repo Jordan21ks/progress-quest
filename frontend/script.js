@@ -6,20 +6,29 @@ let financialGoals = [];
 
 // Check authentication
 async function checkAuth() {
+    const token = localStorage.getItem('token');
+    const username = localStorage.getItem('username');
+    
+    if (!token || !username) {
+        window.location.href = '/login.html';
+        return false;
+    }
+    
     try {
         const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
-            credentials: 'include'
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
         });
         
         if (response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
             window.location.href = '/login.html';
             return false;
         }
         
-        const username = localStorage.getItem('username');
-        if (username) {
-            document.querySelector('.user-info').textContent = `👤 ${username}`;
-        }
+        document.querySelector('.user-info').textContent = `👤 ${username}`;
         return true;
     } catch (error) {
         console.error('Auth check failed:', error);
@@ -31,8 +40,11 @@ async function checkAuth() {
 // Load goals from API
 async function loadGoals() {
     try {
+        const token = localStorage.getItem('token');
         const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
-            credentials: 'include'
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
         });
         
         if (response.status === 401) {
