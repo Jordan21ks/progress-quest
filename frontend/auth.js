@@ -58,11 +58,25 @@ tabs.forEach(tab => {
 async function loadTemplates() {
     try {
         const response = await fetch('https://experience-points-backend.onrender.com/api/templates');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         const templateGrid = document.querySelector('.template-grid');
         
+        if (!templateGrid) {
+            console.error('Template grid not found in DOM');
+            return;
+        }
+        
         // Clear existing templates
         templateGrid.innerHTML = '';
+        
+        // Check if we have templates
+        if (!data || !Array.isArray(data.templates) || data.templates.length === 0) {
+            templateGrid.innerHTML = '<div class="error-message">No templates available. Please try again later.</div>';
+            return;
+        }
         
         // Render each template
         data.templates.forEach(template => {
@@ -138,6 +152,15 @@ async function loadTemplates() {
         });
     } catch (error) {
         console.error('Failed to load templates:', error);
+        const templateGrid = document.querySelector('.template-grid');
+        if (templateGrid) {
+            templateGrid.innerHTML = `<div class="error-message">Failed to load templates: ${error.message}</div>`;
+        }
+        const registerError = document.getElementById('register-error');
+        if (registerError) {
+            registerError.textContent = 'Failed to load templates. Please try again later.';
+            registerError.style.display = 'block';
+        }
     }
 }
 
