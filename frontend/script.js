@@ -462,10 +462,10 @@ export async function handleFormSubmit(event) {
         return;
     }
     
+    const list = type === 'skill' ? skills : financialGoals;
+    const existingIndex = list.findIndex(item => item.name === name);
+    
     try {
-        const list = type === 'skill' ? skills : financialGoals;
-        const existingIndex = list.findIndex(item => item.name === name);
-        
         if (existingIndex >= 0) {
             // Update existing item
             const oldValue = list[existingIndex].current;
@@ -550,6 +550,7 @@ export async function handleFormSubmit(event) {
     } catch (error) {
         console.error('Error updating goal:', error);
         alert(error.message || 'Failed to save goal. Please try again.');
+        return;
     }
     
     // Update the display
