@@ -90,6 +90,10 @@ class History(db.Model):
 
 # Templates
 TEMPLATES = {
+    'clean_slate': {
+        'name': 'The Clean Slate',
+        'skills': []
+    },
     'hybrid_athlete': {
         'name': 'The Hybrid Athlete',
         'skills': [
@@ -137,10 +141,6 @@ TEMPLATES = {
             {'name': 'Spanish', 'current': 1, 'target': 10, 'level': 1},
             {'name': 'Japanese', 'current': 1, 'target': 10, 'level': 1}
         ]
-    },
-    'clean_slate': {
-        'name': 'The Clean Slate',
-        'skills': []
     }
 }
 
