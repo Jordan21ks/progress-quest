@@ -7,8 +7,21 @@ import os
 from datetime import datetime, timedelta
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": ["https://experiencepoints.app", "http://experiencepoints.app", "http://localhost:8080"], "methods": ["GET", "POST", "OPTIONS"], "allow_headers": ["Content-Type"]}})
+CORS(app, supports_credentials=True, resources={r"/api/*": {
+    "origins": ["https://experiencepoints.app", "http://experiencepoints.app", "http://localhost:8080"],
+    "methods": ["GET", "POST", "OPTIONS"],
+    "allow_headers": ["Content-Type"],
+    "expose_headers": ["Set-Cookie"],
+    "supports_credentials": True
+}})
+
+# Session configuration
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_key_123')
+app.config['SESSION_COOKIE_SECURE'] = True  # Only send cookie over HTTPS
+app.config['SESSION_COOKIE_SAMESITE'] = 'None'  # Required for cross-domain cookies
+app.config['SESSION_COOKIE_DOMAIN'] = '.onrender.com'  # Allow cookies for all subdomains
+
+# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///experience_points.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -158,7 +171,14 @@ def login():
     user = User.query.filter_by(username=data.get('username')).first()
     
     if user and check_password_hash(user.password_hash, data.get('password')):
-        login_user(user)
+        login_user(user, remember=True)
+        return jsonify({
+            'message': 'Login successful',
+            'user': {
+                'id': user.id,
+                'username': user.username
+            }
+        })
         return jsonify({'message': 'Login successful'})
     
     return jsonify({'error': 'Invalid username or password'}), 401

@@ -5,14 +5,27 @@ let skills = [];
 let financialGoals = [];
 
 // Check authentication
-function checkAuth() {
-    const username = localStorage.getItem('username');
-    if (!username) {
+async function checkAuth() {
+    try {
+        const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
+            credentials: 'include'
+        });
+        
+        if (response.status === 401) {
+            window.location.href = '/login.html';
+            return false;
+        }
+        
+        const username = localStorage.getItem('username');
+        if (username) {
+            document.querySelector('.user-info').textContent = `👤 ${username}`;
+        }
+        return true;
+    } catch (error) {
+        console.error('Auth check failed:', error);
         window.location.href = '/login.html';
         return false;
     }
-    document.querySelector('.user-info').textContent = `👤 ${username}`;
-    return true;
 }
 
 // Load goals from API
@@ -404,8 +417,8 @@ function logout() {
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
-    if (!checkAuth()) return;
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!await checkAuth()) return;
     
     // Load goals
     loadGoals();
