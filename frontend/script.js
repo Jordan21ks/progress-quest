@@ -506,18 +506,29 @@ export async function deleteGoal(goalId, type) {
     try {
         // Add detailed debugging information
         console.log(`Deleting goal with ID: ${goalId}, type: ${type}`);
-        // Log full URL to verify it's correct
-        const url = `https://experience-points-backend.onrender.com/api/goals/${goalId}`;
-        console.log(`DELETE request to: ${url}`);
+        
+        // Instead of a DELETE request, we'll use a POST request with a delete flag
+        // This avoids potential CORS issues with DELETE methods
+        const url = `https://experience-points-backend.onrender.com/api/goals`;
+        console.log(`POST request with delete_flag to: ${url}`);
         
         const token = localStorage.getItem('token');
         console.log(`Using token (truncated): ${token.substring(0, 10)}...`);
         
+        const requestData = {
+            id: goalId,
+            delete_flag: true
+        };
+        
+        console.log('Delete request data:', requestData);
+        
         const response = await fetch(url, {
-            method: 'DELETE',
+            method: 'POST',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(requestData)
         });
         
         console.log(`Delete response status: ${response.status}`);

@@ -12,12 +12,13 @@ app = Flask(__name__)
 allowed_origins = [
     'https://experiencepoints.app',  # Production
     'http://experiencepoints.app',   # Production HTTP (redirects to HTTPS)
-    'http://localhost:8080'         # Local development
+    'http://localhost:8080',        # Local development
+    'http://localhost:8000'         # Additional local development port
 ]
 
 CORS(app, resources={r"/api/*": {
     "origins": allowed_origins,
-    "methods": ["GET", "POST", "OPTIONS"],
+    "methods": ["GET", "POST", "DELETE", "OPTIONS"],
     "allow_headers": ["Content-Type", "Authorization"],
     "expose_headers": ["Content-Type"]
 }})
@@ -312,7 +313,9 @@ def update_goal(current_user):
         
         # Update existing goal
         goal_id = data.get('id')
-        print(f"Updating existing goal with ID: {goal_id}")
+        delete_flag = data.get('delete_flag', False)
+        
+        print(f"Updating existing goal with ID: {goal_id}, delete_flag: {delete_flag}")
         goal = Goal.query.get(goal_id)
         
         if not goal:
@@ -322,6 +325,24 @@ def update_goal(current_user):
         if goal.user_id != current_user.id:
             print(f"Unauthorized access. Goal belongs to user {goal.user_id}, but request is from user {current_user.id}")
             return jsonify({'error': 'Unauthorized access'}), 403
+            
+        # If delete_flag is True, delete the goal instead of updating it
+        if delete_flag:
+            print(f"Delete flag detected for goal ID: {goal_id}")
+            goal_name = goal.name
+            
+            # Delete associated history
+            history_count = History.query.filter_by(goal_id=goal.id).count()
+            print(f"Deleting {history_count} history records for goal ID: {goal.id}")
+            History.query.filter_by(goal_id=goal.id).delete()
+            
+            # Delete the goal
+            print(f"Deleting goal: {goal.name} (ID: {goal.id})")
+            db.session.delete(goal)
+            db.session.commit()
+            print(f"Goal {goal_name} successfully deleted")
+            
+            return jsonify({'message': 'Goal deleted successfully'})
         
         # Store old values for logging
         old_name = goal.name
