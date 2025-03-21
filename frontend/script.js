@@ -325,17 +325,17 @@ function renderProgressBar(container, item, isFinancial = false) {
         </div>
     `;
 
-    // Play celebration sound if reaching 100%
-    if (percentage >= 100 && prevPercentage < 100) {
+    // Play celebration sound if reaching 100%, but only when updating
+    if (percentage >= 100 && prevPercentage < 100 && window.justUpdated && !window.suppressFunFacts) {
         playVictorySound().catch(e => console.warn('Could not play victory sound:', e));
         showFunFact(item.name, 'Congratulations! You\'ve mastered this skill! 🏆', 100, isFinancial);
     }
 
-    // Show fun fact at certain milestones (25%, 50%, 75%, 100%)
+    // Show fun fact at certain milestones (25%, 50%, 75%, 100%) but only when updating
     const milestones = [25, 50, 75];
     const crossedMilestone = milestones.find(m => percentage >= m && prevPercentage < m);
 
-    if (crossedMilestone) {
+    if (crossedMilestone && window.justUpdated && !window.suppressFunFacts) {
         let fact;
         if (isFinancial) {
             fact = FINANCIAL_FACTS[Math.floor(Math.random() * FINANCIAL_FACTS.length)];
@@ -356,7 +356,7 @@ function renderProgressBar(container, item, isFinancial = false) {
     container.appendChild(div);
 }
 
-// Render all progress bars
+// Render all progress bars without showing fun facts
 function renderAll() {
     const skillsContainer = document.getElementById('skills-container');
     const financialContainer = document.getElementById('financial-container');
@@ -364,8 +364,14 @@ function renderAll() {
     skillsContainer.innerHTML = '';
     financialContainer.innerHTML = '';
     
+    // Suppress fun facts when rendering from login or refresh
+    window.suppressFunFacts = true;
+    
     window.skills?.forEach(skill => renderProgressBar(skillsContainer, skill));
     window.financialGoals?.forEach(goal => renderProgressBar(financialContainer, goal, true));
+    
+    // Reset the flag after rendering
+    window.suppressFunFacts = false;
 }
 
 // Show add/edit form
@@ -379,6 +385,10 @@ export function showAddForm(type) {
     const currentInput = document.getElementById('goal-current');
     const deadlineInput = document.getElementById('goal-deadline');
     const deleteButton = document.getElementById('delete-button');
+    const goalForm = document.getElementById('goalForm');
+    
+    // Clear any existing goal ID when adding a new goal
+    goalForm.dataset.goalId = '';
     
     modalTitle.textContent = type === 'skill' ? '🗡️ New Skill' : '💰 New Financial Goal';
     typeInput.value = type;
@@ -441,6 +451,7 @@ function showEditForm(item, type, event) {
     const currentInput = document.getElementById('goal-current');
     const deadlineInput = document.getElementById('goal-deadline');
     const deleteButton = document.getElementById('delete-button');
+    const goalForm = document.getElementById('goalForm');
     
     modalTitle.textContent = `Edit ${item.name}`;
     typeInput.value = type;
@@ -448,6 +459,9 @@ function showEditForm(item, type, event) {
     targetInput.value = item.target;
     currentInput.value = item.current;
     deadlineInput.value = item.deadline;
+    
+    // Store the goal ID in the form for editing
+    goalForm.dataset.goalId = item.id;
     
     // Name is editable in edit mode
     nameInput.readOnly = false;
@@ -490,6 +504,7 @@ export async function deleteGoal(goalId, type) {
     }
     
     try {
+        console.log(`Deleting goal with ID: ${goalId}`);
         const response = await fetch(`https://experience-points-backend.onrender.com/api/goals/${goalId}`, {
             method: 'DELETE',
             headers: {
@@ -509,8 +524,10 @@ export async function deleteGoal(goalId, type) {
             list.splice(index, 1);
         }
         
-        // Update UI
+        // Update UI with fun facts enabled for updates
+        window.justUpdated = true;
         renderAll();
+        window.justUpdated = false;
         hideModal();
         
     } catch (error) {
@@ -535,6 +552,9 @@ export async function handleFormSubmit(event) {
     event.preventDefault();
     
     try {
+        // Set the update flag to trigger fun facts
+        window.justUpdated = true;
+        
         const type = document.getElementById('goal-type').value;
         const name = document.getElementById('goal-name').value;
         const target = parseFloat(document.getElementById('goal-target').value);
@@ -550,7 +570,13 @@ export async function handleFormSubmit(event) {
         }
         
         const list = type === 'skill' ? window.skills : window.financialGoals;
-        const existingIndex = list?.findIndex(item => item.name === name) ?? -1;
+        // When editing from the form, the goal ID is stored in the DOM
+        const goalId = document.getElementById('goalForm').dataset.goalId;
+        
+        // If we have a goal ID, we're editing an existing goal
+        const existingIndex = goalId ? 
+            list?.findIndex(item => item.id === parseInt(goalId)) : 
+            list?.findIndex(item => item.name === name) ?? -1;
         
         // Prepare request data
         const requestData = {
@@ -657,6 +683,9 @@ export async function handleFormSubmit(event) {
         // Update display and close modal
         renderAll();
         hideModal();
+        
+        // Reset the update flag after rendering
+        window.justUpdated = false;
     } catch (error) {
         console.error('Error saving goal:', error);
         alert(error.message || 'Failed to save goal. Please try again.');
