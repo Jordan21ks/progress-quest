@@ -2,56 +2,84 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="description" content="Track your activities and financial goals with Experience Points">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Progress Quest</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Experience Points</title>
+    <link href="styles.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="container">
-        <h1>Progress Quest</h1>
-        
-        <div class="section">
-            <div class="section-header">
-                <h2>Activity Hours</h2>
-                <button class="add-btn" onclick="app.showAddForm('skill')">+ Add Activity</button>
+        <div class="header">
+            <h1>⚔️ Experience Points ⚔️</h1>
+            <div class="user-controls">
+                <span class="user-info"></span>
+                <button id="logoutBtn" class="btn">Logout</button>
             </div>
-            <div id="skills-container" class="progress-container"></div>
+        </div>
+        
+        <div class="progress-section">
+            <h2>Skills</h2>
+            <div id="skills-container"></div>
+            <button class="btn" id="addSkillBtn">+ New Skill</button>
         </div>
 
-        <div class="section">
-            <div class="section-header">
-                <h2>Debt Reduction</h2>
-                <button class="add-btn" onclick="app.showAddForm('financial')">+ Add Goal</button>
-            </div>
-            <div id="financial-container" class="progress-container"></div>
+        <div class="progress-section">
+            <h2>Financial Goals</h2>
+            <div id="financial-container"></div>
+            <button class="btn" id="addFinancialBtn">+ New Goal</button>
         </div>
     </div>
 
-    <!-- Add/Edit Modal -->
-    <div id="modal" class="modal">
+    <!-- Modal for adding/editing goals -->
+    <div class="modal" id="goalModal" style="display: none;">
         <div class="modal-content">
-            <span class="close-btn" onclick="app.closeModal()">&times;</span>
-            <h3 id="modal-title">Add New Goal</h3>
-            <form id="goal-form" onsubmit="app.handleFormSubmit(event)">
+            <div class="modal-header">
+                <h2 id="modalTitle">Add New Goal</h2>
+            </div>
+            <form id="goalForm">
+                <input type="hidden" id="goal-type" value="skill">
                 <div class="form-group">
                     <label for="goal-name">Name:</label>
                     <input type="text" id="goal-name" required>
                 </div>
                 <div class="form-group">
-                    <label for="goal-current">Current Progress:</label>
-                    <input type="number" id="goal-current" min="0" required>
+                    <label for="goal-target">Target:</label>
+                    <input type="number" id="goal-target" required>
                 </div>
                 <div class="form-group">
-                    <label for="goal-target">Target:</label>
-                    <input type="number" id="goal-target" min="1" required>
+                    <label for="goal-current">Current Progress:</label>
+                    <input type="number" id="goal-current" required>
                 </div>
-                <input type="hidden" id="goal-type">
-                <input type="hidden" id="goal-id">
-                <button type="submit" class="submit-btn">Save</button>
+                <div class="form-group">
+                    <label for="goal-deadline">Deadline:</label>
+                    <input type="date" id="goal-deadline">
+                </div>
+                <button type="submit" class="btn">Save</button>
+                <button type="button" class="btn" id="cancelBtn">Cancel</button>
             </form>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Load scripts in correct order -->
+    <script type="module">
+        import { handleFormSubmit, hideModal } from './script.js';
+        
+        // Set up form handlers
+        document.getElementById('goalForm').addEventListener('submit', handleFormSubmit);
+        document.getElementById('cancelBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            hideModal();
+        });
+        
+        // Close modal on outside click
+        window.addEventListener('click', (event) => {
+            const modal = document.getElementById('goalModal');
+            if (event.target === modal) {
+                hideModal();
+            }
+        });
+    </script>
+    <script src="script.js" type="module"></script>
 </body>
 </html>
