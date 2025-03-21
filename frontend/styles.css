@@ -265,12 +265,13 @@ h1 {
   border: 1px solid var(--ff-border);
   color: var(--ff-text);
   font-family: 'Press Start 2P', monospace;
+  appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  appearance: none;
 }
 
 .form-group input[type='number'] {
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 
@@ -341,6 +342,24 @@ h1 {
   box-shadow: 0 0 20px var(--ff-crystal);
   animation: messagePopup 0.5s ease-out;
   z-index: 1000;
+}
+
+.button-group {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.delete-btn {
+  background-color: var(--ff-danger);
+  border-color: var(--ff-danger);
+}
+
+.delete-btn:hover {
+  background-color: #ff2222;
+  border-color: #ff2222;
 }
 
 @keyframes messagePopup {

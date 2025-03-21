@@ -55,15 +55,18 @@
                     <label for="goal-deadline">Deadline:</label>
                     <input type="date" id="goal-deadline">
                 </div>
-                <button type="submit" class="btn">Save</button>
-                <button type="button" class="btn" id="cancelBtn">Cancel</button>
+                <div class="button-group">
+                    <button type="submit" class="btn">Save</button>
+                    <button type="button" class="btn" id="cancelBtn">Cancel</button>
+                    <button type="button" class="btn delete-btn" id="delete-button" style="display: none;">Delete</button>
+                </div>
             </form>
         </div>
     </div>
 
     <!-- Load scripts in correct order -->
     <script type="module">
-        import { handleFormSubmit, hideModal } from './script.js';
+        import { handleFormSubmit, hideModal, deleteGoal } from './script.js';
         
         // Set up form handlers
         document.getElementById('goalForm').addEventListener('submit', handleFormSubmit);
@@ -77,6 +80,18 @@
             const modal = document.getElementById('goalModal');
             if (event.target === modal) {
                 hideModal();
+            }
+        });
+        
+        // Handle delete button click
+        document.getElementById('delete-button').addEventListener('click', (e) => {
+            e.preventDefault();
+            const button = e.target;
+            const goalId = button.dataset.id;
+            const goalType = button.dataset.type;
+            
+            if (goalId && goalType) {
+                deleteGoal(goalId, goalType);
             }
         });
     </script>

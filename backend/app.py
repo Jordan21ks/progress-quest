@@ -311,6 +311,7 @@ def update_goal(current_user):
     if not goal or goal.user_id != current_user.id:
         return jsonify({'error': 'Goal not found'}), 404
     
+    goal.name = data.get('name', goal.name)
     goal.current = data.get('current', goal.current)
     goal.target = data.get('target', goal.target)
     goal.deadline = datetime.fromisoformat(data.get('deadline')) if data.get('deadline') else goal.deadline
@@ -376,6 +377,23 @@ DYNAMIC_FACTS = {
 }
 
 # Dynamic fact fetching
+@app.route('/api/goals/<int:goal_id>', methods=['DELETE'])
+@token_required
+def delete_goal(current_user, goal_id):
+    goal = Goal.query.get(goal_id)
+    
+    if not goal or goal.user_id != current_user.id:
+        return jsonify({'error': 'Goal not found'}), 404
+    
+    # Delete associated history
+    History.query.filter_by(goal_id=goal.id).delete()
+    
+    # Delete the goal
+    db.session.delete(goal)
+    db.session.commit()
+    
+    return jsonify({'message': 'Goal deleted successfully'})
+
 @app.route('/api/facts', methods=['POST'])
 @token_required
 def get_fact(current_user):

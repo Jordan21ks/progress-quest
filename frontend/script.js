@@ -128,7 +128,7 @@ async function checkAuth() {
 }
 
 // Load goals from API
-async function loadGoals() {
+export async function loadGoals() {
     try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -378,6 +378,7 @@ export function showAddForm(type) {
     const targetInput = document.getElementById('goal-target');
     const currentInput = document.getElementById('goal-current');
     const deadlineInput = document.getElementById('goal-deadline');
+    const deleteButton = document.getElementById('delete-button');
     
     modalTitle.textContent = type === 'skill' ? '🗡️ New Skill' : '💰 New Financial Goal';
     typeInput.value = type;
@@ -386,13 +387,16 @@ export function showAddForm(type) {
     currentInput.value = '';
     deadlineInput.value = '';
     
-    modal.style.display = 'block';
-    nameInput.focus();
-    
     // Enable name field for new items
     nameInput.readOnly = false;
     
+    // Hide delete button for new items
+    if (deleteButton) {
+        deleteButton.style.display = 'none';
+    }
+    
     modal.style.display = 'block';
+    nameInput.focus();
 }
 
 // Skill emojis mapping
@@ -436,6 +440,7 @@ function showEditForm(item, type, event) {
     const targetInput = document.getElementById('goal-target');
     const currentInput = document.getElementById('goal-current');
     const deadlineInput = document.getElementById('goal-deadline');
+    const deleteButton = document.getElementById('delete-button');
     
     modalTitle.textContent = `Edit ${item.name}`;
     typeInput.value = type;
@@ -444,8 +449,15 @@ function showEditForm(item, type, event) {
     currentInput.value = item.current;
     deadlineInput.value = item.deadline;
     
-    // Make name field readonly for edits
-    nameInput.readOnly = true;
+    // Name is editable in edit mode
+    nameInput.readOnly = false;
+    
+    // Show delete button for edits and set the item ID
+    if (deleteButton) {
+        deleteButton.style.display = 'block';
+        deleteButton.dataset.id = item.id;
+        deleteButton.dataset.type = type;
+    }
     
     // Position modal based on screen size
     const rect = event ? event.currentTarget.getBoundingClientRect() : { top: window.innerHeight / 2 };
@@ -469,6 +481,42 @@ function showEditForm(item, type, event) {
 // Hide modal
 export function hideModal() {
     document.getElementById('goalModal').style.display = 'none';
+}
+
+// Delete a goal
+export async function deleteGoal(goalId, type) {
+    if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`https://experience-points-backend.onrender.com/api/goals/${goalId}`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+        });
+        
+        if (!response.ok) {
+            const data = await response.json();
+            throw new Error(data.error || 'Failed to delete item');
+        }
+        
+        // Remove from local arrays
+        const list = type === 'skill' ? window.skills : window.financialGoals;
+        const index = list.findIndex(item => item.id === parseInt(goalId));
+        if (index > -1) {
+            list.splice(index, 1);
+        }
+        
+        // Update UI
+        renderAll();
+        hideModal();
+        
+    } catch (error) {
+        console.error('Error deleting goal:', error);
+        alert(error.message || 'Failed to delete item. Please try again.');
+    }
 }
 
 // Add progress history entry
