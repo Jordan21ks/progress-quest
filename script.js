@@ -504,17 +504,35 @@ export async function deleteGoal(goalId, type) {
     }
     
     try {
-        console.log(`Deleting goal with ID: ${goalId}`);
-        const response = await fetch(`https://experience-points-backend.onrender.com/api/goals/${goalId}`, {
+        // Add detailed debugging information
+        console.log(`Deleting goal with ID: ${goalId}, type: ${type}`);
+        // Log full URL to verify it's correct
+        const url = `https://experience-points-backend.onrender.com/api/goals/${goalId}`;
+        console.log(`DELETE request to: ${url}`);
+        
+        const token = localStorage.getItem('token');
+        console.log(`Using token (truncated): ${token.substring(0, 10)}...`);
+        
+        const response = await fetch(url, {
             method: 'DELETE',
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         });
         
+        console.log(`Delete response status: ${response.status}`);
+        const responseText = await response.text();
+        console.log(`Delete response body: ${responseText}`);
+        
         if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Failed to delete item');
+            let errorMessage = 'Failed to delete item';
+            try {
+                const data = JSON.parse(responseText);
+                errorMessage = data.error || errorMessage;
+            } catch (e) {
+                console.error('Error parsing response JSON:', e);
+            }
+            throw new Error(errorMessage);
         }
         
         // Remove from local arrays
@@ -561,6 +579,11 @@ export async function handleFormSubmit(event) {
         const current = parseFloat(document.getElementById('goal-current').value);
         const deadline = document.getElementById('goal-deadline').value || null;
         
+        // Add detailed debugging for form submission
+        console.log('Form submission details:');
+        console.log(`Type: ${type}, Name: ${name}, Target: ${target}, Current: ${current}, Deadline: ${deadline}`);
+        console.log('Form dataset:', document.getElementById('goalForm').dataset);
+        
         if (!name) {
             throw new Error('Please enter a name');
         }
@@ -572,11 +595,17 @@ export async function handleFormSubmit(event) {
         const list = type === 'skill' ? window.skills : window.financialGoals;
         // When editing from the form, the goal ID is stored in the DOM
         const goalId = document.getElementById('goalForm').dataset.goalId;
+        console.log(`Goal ID from form dataset: ${goalId}`);
         
         // If we have a goal ID, we're editing an existing goal
         const existingIndex = goalId ? 
             list?.findIndex(item => item.id === parseInt(goalId)) : 
             list?.findIndex(item => item.name === name) ?? -1;
+            
+        console.log(`Existing index found: ${existingIndex}`);
+        if (existingIndex >= 0) {
+            console.log(`Existing item:`, list[existingIndex]);
+        }
         
         // Prepare request data
         const requestData = {
@@ -591,17 +620,31 @@ export async function handleFormSubmit(event) {
         if (existingIndex >= 0) {
             requestData.id = list[existingIndex].id;
             oldValue = list[existingIndex].current || 0;
+            console.log(`Adding ID to request: ${requestData.id} (from index ${existingIndex})`);
+        } else {
+            console.log('Creating new item (no existing ID found)');
         }
         
+        console.log('Final request data:', requestData);
+        
         // Send to backend
-        const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
+        const url = 'https://experience-points-backend.onrender.com/api/goals';
+        console.log(`Sending POST request to: ${url}`);
+        console.log(`Request body: ${JSON.stringify(requestData, null, 2)}`);
+        
+        const token = localStorage.getItem('token');
+        console.log(`Using token (truncated): ${token.substring(0, 10)}...`);
+        
+        const response = await fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify(requestData)
         });
+        
+        console.log(`Response status: ${response.status}`);
         
         const data = await response.json();
         
