@@ -287,40 +287,64 @@ def get_goals(current_user):
 @app.route('/api/goals', methods=['POST'])
 @token_required
 def update_goal(current_user):
-    data = request.get_json()
-    
-    # If no ID is provided, create a new goal
-    if not data.get('id'):
-        goal = Goal(
-            name=data.get('name'),
-            current=data.get('current', 0),
-            target=data.get('target', 10),
-            level=1,
-            type=data.get('type', 'skill'),
-            deadline=datetime.fromisoformat(data.get('deadline')) if data.get('deadline') else (datetime.now() + timedelta(days=90)),
-            user_id=current_user.id
-        )
-        db.session.add(goal)
+    try:
+        data = request.get_json()
+        print(f"Update goal data received: {data}")
+        
+        # If no ID is provided, create a new goal
+        if not data.get('id'):
+            print(f"Creating new goal: {data.get('name')} of type {data.get('type')}")
+            goal = Goal(
+                name=data.get('name'),
+                current=data.get('current', 0),
+                target=data.get('target', 10),
+                level=1,
+                type=data.get('type', 'skill'),
+                deadline=datetime.fromisoformat(data.get('deadline')) if data.get('deadline') else (datetime.now() + timedelta(days=90)),
+                user_id=current_user.id
+            )
+            db.session.add(goal)
+            history = History(date=datetime.now(), value=goal.current, goal=goal)
+            db.session.add(history)
+            db.session.commit()
+            print(f"New goal created with ID: {goal.id}")
+            return jsonify(goal_to_dict(goal))
+        
+        # Update existing goal
+        goal_id = data.get('id')
+        print(f"Updating existing goal with ID: {goal_id}")
+        goal = Goal.query.get(goal_id)
+        
+        if not goal:
+            print(f"Goal not found with ID: {goal_id}")
+            return jsonify({'error': 'Goal not found'}), 404
+            
+        if goal.user_id != current_user.id:
+            print(f"Unauthorized access. Goal belongs to user {goal.user_id}, but request is from user {current_user.id}")
+            return jsonify({'error': 'Unauthorized access'}), 403
+        
+        # Store old values for logging
+        old_name = goal.name
+        old_current = goal.current
+        old_target = goal.target
+        
+        goal.name = data.get('name', goal.name)
+        goal.current = data.get('current', goal.current)
+        goal.target = data.get('target', goal.target)
+        goal.deadline = datetime.fromisoformat(data.get('deadline')) if data.get('deadline') else goal.deadline
+        
+        print(f"Updating goal: {old_name} -> {goal.name}, {old_current} -> {goal.current}, {old_target} -> {goal.target}")
+        
         history = History(date=datetime.now(), value=goal.current, goal=goal)
         db.session.add(history)
         db.session.commit()
+        print(f"Goal updated successfully with ID: {goal.id}")
+        
         return jsonify(goal_to_dict(goal))
-    
-    # Update existing goal
-    goal = Goal.query.get(data.get('id'))
-    if not goal or goal.user_id != current_user.id:
-        return jsonify({'error': 'Goal not found'}), 404
-    
-    goal.name = data.get('name', goal.name)
-    goal.current = data.get('current', goal.current)
-    goal.target = data.get('target', goal.target)
-    goal.deadline = datetime.fromisoformat(data.get('deadline')) if data.get('deadline') else goal.deadline
-    
-    history = History(date=datetime.now(), value=goal.current, goal=goal)
-    db.session.add(history)
-    db.session.commit()
-    
-    return jsonify(goal_to_dict(goal))
+    except Exception as e:
+        print(f"Error in update_goal: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': f'Failed to update goal: {str(e)}'}), 500
 
 # Dynamic facts database
 DYNAMIC_FACTS = {
@@ -380,19 +404,40 @@ DYNAMIC_FACTS = {
 @app.route('/api/goals/<int:goal_id>', methods=['DELETE'])
 @token_required
 def delete_goal(current_user, goal_id):
-    goal = Goal.query.get(goal_id)
-    
-    if not goal or goal.user_id != current_user.id:
-        return jsonify({'error': 'Goal not found'}), 404
-    
-    # Delete associated history
-    History.query.filter_by(goal_id=goal.id).delete()
-    
-    # Delete the goal
-    db.session.delete(goal)
-    db.session.commit()
-    
-    return jsonify({'message': 'Goal deleted successfully'})
+    try:
+        print(f"Delete request for goal ID: {goal_id} by user ID: {current_user.id}")
+        goal = Goal.query.get(goal_id)
+        
+        # Debug output
+        if goal:
+            print(f"Found goal: ID={goal.id}, Name={goal.name}, UserID={goal.user_id}")
+        else:
+            print(f"No goal found with ID: {goal_id}")
+        
+        if not goal:
+            print(f"Goal not found with ID: {goal_id}")
+            return jsonify({'error': 'Goal not found'}), 404
+            
+        if goal.user_id != current_user.id:
+            print(f"Unauthorized access. Goal belongs to user {goal.user_id}, but request is from user {current_user.id}")
+            return jsonify({'error': 'Unauthorized access'}), 403
+        
+        # Delete associated history
+        history_count = History.query.filter_by(goal_id=goal.id).count()
+        print(f"Deleting {history_count} history records for goal ID: {goal.id}")
+        History.query.filter_by(goal_id=goal.id).delete()
+        
+        # Delete the goal
+        print(f"Deleting goal: {goal.name} (ID: {goal.id})")
+        db.session.delete(goal)
+        db.session.commit()
+        print(f"Goal successfully deleted")
+        
+        return jsonify({'message': 'Goal deleted successfully'})
+    except Exception as e:
+        print(f"Error in delete_goal: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': f'Failed to delete goal: {str(e)}'}), 500
 
 @app.route('/api/facts', methods=['POST'])
 @token_required
