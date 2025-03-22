@@ -194,6 +194,7 @@ function calculateLevel(current, target) {
 
 // Check if skill is mastered (100% or more)
 function isMastered(current, target) {
+    console.log(`Checking mastery: ${current} >= ${target}? ${current >= target}`);
     return current >= target;
 }
 
@@ -298,9 +299,20 @@ function renderProgressBar(container, item, isFinancial = false) {
     div.className = 'progress-container' + (mastered ? ' mastered' : '');
     div.dataset.goalId = item.id;
     
-    const value = isFinancial ? 
-        `${formatCurrency(item.current)}/${formatCurrency(item.target)}` :
-        `${item.current}/${item.target} hrs`;
+        // CRITICAL FIX: Get the correct unit from the item or use default based on type
+    // Make sure we're properly displaying the unit selected by the user
+    const unit = item.unit || (isFinancial ? '£' : 'hrs');
+    console.log(`[UNIT DEBUG] ${item.name} using unit:`, unit);
+    
+    // Format the display value based on unit type
+    let value;
+    if (unit === '£') {
+        // Format financial goals with currency symbol
+        value = `${formatCurrency(item.current)}/${formatCurrency(item.target)}`;
+    } else {
+        // Format other goals with their specific units
+        value = `${item.current}/${item.target} ${unit}`;
+    }
 
     const timelineStatus = getTimelineStatus(item);
     const daysLeft = getDaysUntilDeadline(item.deadline);
@@ -310,6 +322,20 @@ function renderProgressBar(container, item, isFinancial = false) {
     // Parse previous percentage for milestone detection
     const prevPercentage = parseFloat(previousPercentage) || 0;
 
+    // CRITICAL FIX: Determine if we should show the timeline info
+    // Timeline is only shown when there's sufficient data (2+ history points) OR if the goal is mastered
+    const historyLength = item.history?.length || 0;
+    const isMasteredGoal = item.current >= item.target;
+    
+    // Explicitly check these conditions to ensure the timeline is hidden when appropriate
+    const hasTimelineData = historyLength >= 2 || isMasteredGoal;
+    
+    console.log(`[TIMELINE DEBUG] ${item.name}: History=${historyLength}, Mastered=${isMasteredGoal}, Show=${hasTimelineData}`);
+    
+    // For testing, force all timelines to be hidden except mastered goals
+    // Comment this out when testing is complete
+    // const hasTimelineData = isMasteredGoal;
+    
     div.innerHTML = `
         <div class="progress-label">
             <span>${emoji} ${item.name}<span class="level-display">(Lv. ${item.level})</span></span>
@@ -318,11 +344,13 @@ function renderProgressBar(container, item, isFinancial = false) {
         <div class="progress-bar">
             <div class="progress-fill" style="width: ${Math.min(percentage, 100)}%"></div>
         </div>
+        ${hasTimelineData ? `
         <div class="timeline-info" style="color: ${timelineStatus.color}">
             <span>⏰ Deadline: ${formatDate(item.deadline)} (${daysLeft} days)</span>
             <span>🎯 Predicted: ${prediction ? formatDate(prediction) : 'Insufficient data'}</span>
             <span>📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>
-        </div>
+        </div>` : ''}
+        
     `;
 
     // Play celebration sound if reaching 100%, but only when updating
@@ -383,6 +411,8 @@ export function showAddForm(type) {
     const nameInput = document.getElementById('goal-name');
     const targetInput = document.getElementById('goal-target');
     const currentInput = document.getElementById('goal-current');
+    const unitField = document.getElementById('goal-unit');
+    const unitContainer = document.getElementById('unit-field-container');
     const deadlineInput = document.getElementById('goal-deadline');
     const deleteButton = document.getElementById('delete-button');
     const goalForm = document.getElementById('goalForm');
@@ -396,6 +426,13 @@ export function showAddForm(type) {
     targetInput.value = '';
     currentInput.value = '';
     deadlineInput.value = '';
+    
+    // Set default unit based on type
+    if (type === 'financial') {
+        unitField.value = '£';
+    } else {
+        unitField.value = 'hrs';
+    }
     
     // Enable name field for new items
     nameInput.readOnly = false;
@@ -449,6 +486,8 @@ function showEditForm(item, type, event) {
     const nameInput = document.getElementById('goal-name');
     const targetInput = document.getElementById('goal-target');
     const currentInput = document.getElementById('goal-current');
+    const unitField = document.getElementById('goal-unit');
+    const unitContainer = document.getElementById('unit-field-container');
     const deadlineInput = document.getElementById('goal-deadline');
     const deleteButton = document.getElementById('delete-button');
     const goalForm = document.getElementById('goalForm');
@@ -459,6 +498,24 @@ function showEditForm(item, type, event) {
     targetInput.value = item.target;
     currentInput.value = item.current;
     deadlineInput.value = item.deadline;
+    
+    // Set the unit from the item if available, otherwise use default
+    console.log(`Editing item ${item.name}, unit value:`, item.unit);
+    if (item.unit) {
+        console.log(`Using existing unit: ${item.unit}`);
+        unitField.value = item.unit;
+    } else if (type === 'financial') {
+        console.log(`Financial goal, defaulting to £`);
+        unitField.value = '£';
+    } else {
+        console.log(`Skill goal, defaulting to hrs`);
+        unitField.value = 'hrs';
+    }
+    
+    // Make sure the unit field is visible
+    if (unitContainer) {
+        unitContainer.style.display = 'block';
+    }
     
     // Store the goal ID in the form for editing
     goalForm.dataset.goalId = item.id;
@@ -588,11 +645,12 @@ export async function handleFormSubmit(event) {
         const name = document.getElementById('goal-name').value;
         const target = parseFloat(document.getElementById('goal-target').value);
         const current = parseFloat(document.getElementById('goal-current').value);
+        const unit = document.getElementById('goal-unit').value;
         const deadline = document.getElementById('goal-deadline').value || null;
         
         // Add detailed debugging for form submission
         console.log('Form submission details:');
-        console.log(`Type: ${type}, Name: ${name}, Target: ${target}, Current: ${current}, Deadline: ${deadline}`);
+        console.log(`Type: ${type}, Name: ${name}, Target: ${target}, Current: ${current}, Unit: ${unit}, Deadline: ${deadline}`);
         console.log('Form dataset:', document.getElementById('goalForm').dataset);
         
         if (!name) {
@@ -624,7 +682,8 @@ export async function handleFormSubmit(event) {
             current,
             target,
             deadline,
-            type
+            type,
+            unit  // Include the unit field from the form
         };
         
         let oldValue = 0;
