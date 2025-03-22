@@ -57,7 +57,7 @@ tabs.forEach(tab => {
 // Load and render templates
 async function loadTemplates() {
     try {
-        const response = await fetch('https://experience-points-backend.onrender.com/api/templates');
+        const response = await fetch('http://localhost:5001/api/templates');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -180,7 +180,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const errorDiv = document.getElementById('login-error');
     
     try {
-        const response = await fetch('https://experience-points-backend.onrender.com/api/login', {
+        const response = await fetch('http://localhost:5001/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -221,7 +221,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const password = document.getElementById('register-password').value;
     
     try {
-        const response = await fetch('https://experience-points-backend.onrender.com/api/register', {
+        const response = await fetch('http://localhost:5001/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
