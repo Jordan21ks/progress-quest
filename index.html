@@ -38,6 +38,9 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="favicon.svg">
     
+    <!-- Chart.js for radar charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <!-- Schema.org markup for Google -->
     <script type="application/ld+json">
     {
@@ -66,6 +69,13 @@
             <div class="user-controls">
                 <span class="user-info"></span>
                 <button id="logoutBtn" class="btn">Logout</button>
+            </div>
+        </div>
+        
+        <div class="progress-overview">
+            <h2>Progress Report</h2>
+            <div class="chart-container">
+                <canvas id="progressChart"></canvas>
             </div>
         </div>
         

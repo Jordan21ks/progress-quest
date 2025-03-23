@@ -1,5 +1,122 @@
 import { playLevelUpSound, playVictorySound } from './sounds.js';
 
+// Global chart variable
+let progressRadarChart = null;
+
+// Initialize the radar chart
+function initProgressChart() {
+    const ctx = document.getElementById('progressChart');
+    if (!ctx) return;
+    
+    // Chart.js configuration
+    progressRadarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: [], // Will be populated dynamically
+            datasets: [{
+                label: 'Progress',
+                data: [], // Will be populated dynamically
+                backgroundColor: 'rgba(138, 43, 226, 0.2)', // Matching the app's color scheme
+                borderColor: 'rgba(138, 43, 226, 0.8)',
+                borderWidth: 2,
+                pointBackgroundColor: 'rgba(255, 139, 244, 1)',
+                pointBorderColor: '#fff',
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: 'rgba(138, 43, 226, 1)'
+            }]
+        },
+        options: {
+            scales: {
+                r: {
+                    angleLines: {
+                        color: 'rgba(255, 255, 255, 0.2)'
+                    },
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.2)'
+                    },
+                    pointLabels: {
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        font: {
+                            family: "'Press Start 2P', monospace",
+                            size: 10
+                        }
+                    },
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        backdropColor: 'transparent',
+                        font: {
+                            family: "'Press Start 2P', monospace",
+                            size: 8
+                        }
+                    },
+                    suggestedMin: 0,
+                    suggestedMax: 100
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 48, 0.7)',
+                    titleFont: {
+                        family: "'Press Start 2P', monospace",
+                        size: 10
+                    },
+                    bodyFont: {
+                        family: "'Press Start 2P', monospace",
+                        size: 10
+                    },
+                    callbacks: {
+                        label: function(context) {
+                            return `Progress: ${context.raw.toFixed(0)}%`;
+                        }
+                    }
+                }
+            },
+            elements: {
+                line: {
+                    tension: 0.1
+                }
+            },
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+// Update the radar chart with current data
+function updateProgressChart() {
+    if (!progressRadarChart) return;
+    
+    // Combine skills and financial goals
+    const allGoals = [...(window.skills || []), ...(window.financialGoals || [])];
+    if (!allGoals.length) return;
+    
+    // Generate data for the chart
+    const labels = [];
+    const data = [];
+    
+    allGoals.forEach(goal => {
+        // Skip goals without a target to avoid division by zero
+        if (!goal.target || goal.target <= 0) return;
+        
+        // Add the goal name to labels
+        labels.push(goal.name);
+        
+        // Calculate percentage (0-100)
+        const percentage = Math.min((goal.current / goal.target) * 100, 100);
+        data.push(percentage);
+    });
+    
+    // Update chart data
+    progressRadarChart.data.labels = labels;
+    progressRadarChart.data.datasets[0].data = data;
+    
+    // Update the chart
+    progressRadarChart.update();
+}
+
 // Fun facts and progression milestones for skills
 const SKILL_FACTS = {
     // Default facts for any skill
@@ -438,6 +555,9 @@ function renderAll() {
     window.skills?.forEach(skill => renderProgressBar(skillsContainer, skill));
     window.financialGoals?.forEach(goal => renderProgressBar(financialContainer, goal, true));
     
+    // Update the radar chart with the latest data
+    updateProgressChart();
+    
     // Reset the flag after rendering
     window.suppressFunFacts = false;
 }
@@ -623,6 +743,10 @@ export async function deleteGoal(goalId, type) {
         // Update UI with fun facts enabled for updates
         window.justUpdated = true;
         renderAll();
+        
+        // Explicitly update the progress chart to reflect the deleted goal
+        updateProgressChart();
+        
         window.justUpdated = false;
         hideModal();
         
@@ -866,6 +990,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = 'login.html';
         return;
     }
+    
+    // Initialize the radar chart
+    initProgressChart();
     
     // Load goals
     await loadGoals();

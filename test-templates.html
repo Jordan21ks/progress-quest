@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Test</title>
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <h1>Template Test</h1>
+        <div id="templates-container"></div>
+    </div>
+    
+    <script>
+        // Function to load and display templates
+        async function testTemplates() {
+            const container = document.getElementById('templates-container');
+            container.innerHTML = 'Loading templates...';
+            
+            try {
+                const response = await fetch('http://localhost:5001/api/templates');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data || !Array.isArray(data.templates) || data.templates.length === 0) {
+                    container.innerHTML = '<div class="error">No templates available</div>';
+                    return;
+                }
+                
+                let output = '<h2>Template Data:</h2><pre>' + JSON.stringify(data, null, 2) + '</pre>';
+                container.innerHTML = output;
+                
+            } catch (error) {
+                console.error('Error fetching templates:', error);
+                container.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+        
+        // Load templates when page loads
+        document.addEventListener('DOMContentLoaded', testTemplates);
+    </script>
+</body>
+</html>
