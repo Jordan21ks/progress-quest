@@ -141,37 +141,72 @@
         </div>
     </div>
 
-    <!-- Load scripts in correct order -->
-    <script type="module">
-        import { handleFormSubmit, hideModal, deleteGoal } from './script.js';
-        
-        // Set up form handlers
-        document.getElementById('goalForm').addEventListener('submit', handleFormSubmit);
-        document.getElementById('cancelBtn').addEventListener('click', (e) => {
-            e.preventDefault();
-            hideModal();
-        });
-        
-        // Close modal on outside click
-        window.addEventListener('click', (event) => {
-            const modal = document.getElementById('goalModal');
-            if (event.target === modal) {
-                hideModal();
+    <!-- Load scripts -->
+    <script src="script.js"></script>
+    <script>
+        // Ensure DOM is fully loaded before event bindings
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up click handlers for buttons
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    logout();
+                });
             }
-        });
-        
-        // Handle delete button click
-        document.getElementById('delete-button').addEventListener('click', (e) => {
-            e.preventDefault();
-            const button = e.target;
-            const goalId = button.dataset.id;
-            const goalType = button.dataset.type;
-            
-            if (goalId && goalType) {
-                deleteGoal(goalId, goalType);
+
+            const addSkillBtn = document.getElementById('addSkillBtn');
+            if (addSkillBtn) {
+                addSkillBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showAddForm('skill');
+                });
             }
+
+            const addFinancialBtn = document.getElementById('addFinancialBtn');
+            if (addFinancialBtn) {
+                addFinancialBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showAddForm('financial');
+                });
+            }
+
+            const cancelBtn = document.getElementById('cancelBtn');
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    hideModal();
+                });
+            }
+
+            const deleteButton = document.getElementById('delete-button');
+            if (deleteButton) {
+                deleteButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const button = e.target;
+                    const goalId = button.dataset.id;
+                    const goalType = button.dataset.type;
+                    
+                    if (goalId && goalType) {
+                        deleteGoal(goalId, goalType);
+                    }
+                });
+            }
+
+            // Set up form submission handler
+            const goalForm = document.getElementById('goalForm');
+            if (goalForm) {
+                goalForm.addEventListener('submit', handleFormSubmit);
+            }
+
+            // Close modal on outside click
+            window.addEventListener('click', function(event) {
+                const modal = document.getElementById('goalModal');
+                if (event.target === modal) {
+                    hideModal();
+                }
+            });
         });
     </script>
-    <script src="script.js" type="module"></script>
 </body>
 </html>

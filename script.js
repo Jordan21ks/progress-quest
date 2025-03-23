@@ -1,6 +1,21 @@
-import { playLevelUpSound, playVictorySound } from './sounds.js';
+// Sound functions
+function playLevelUpSound() {
+    try {
+        const audio = new Audio('sounds/level-up.mp3');
+        audio.play();
+    } catch (error) {
+        console.error('Error playing level up sound:', error);
+    }
+}
 
-// We'll make functions globally available at the end of the file
+function playVictorySound() {
+    try {
+        const audio = new Audio('sounds/victory.mp3');
+        audio.play();
+    } catch (error) {
+        console.error('Error playing victory sound:', error);
+    }
+}
 
 // Global chart variable
 let progressRadarChart = null;
@@ -565,7 +580,8 @@ function renderAll() {
 }
 
 // Show add/edit form
-export function showAddForm(type) {
+// Show form for adding a new goal
+function showAddForm(type) {
     console.log('showAddForm called with type:', type);
     const modal = document.getElementById('goalModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -990,7 +1006,7 @@ window.skills = [];
 window.financialGoals = [];
 
 // Initialize
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async function() {
     // Check auth first
     if (!await checkAuth()) {
         window.location.href = 'login.html';
@@ -1003,21 +1019,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load goals
     await loadGoals();
     
-    // Make sure functions are globally available for DOM event handlers
-    window.showAddForm = showAddForm;
-    window.showEditForm = showEditForm;
-    window.deleteGoal = deleteGoal;
-    window.handleFormSubmit = handleFormSubmit;
-    window.hideModal = hideModal;
-    window.logout = logout;
-    
-    // Set up form handlers
+    // Set up all event bindings
     const goalForm = document.getElementById('goalForm');
     if (goalForm) {
         goalForm.addEventListener('submit', handleFormSubmit);
     }
     
-    // Set up logout handler
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
@@ -1026,7 +1033,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Set up add buttons
     const addSkillBtn = document.getElementById('addSkillBtn');
     if (addSkillBtn) {
         addSkillBtn.addEventListener('click', (e) => {
@@ -1043,7 +1049,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
-    // Set up cancel button
     const cancelBtn = document.getElementById('cancelBtn');
     if (cancelBtn) {
         cancelBtn.addEventListener('click', (e) => {
@@ -1052,8 +1057,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
     
+    const deleteButton = document.getElementById('delete-button');
+    if (deleteButton) {
+        deleteButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            const button = e.target;
+            const goalId = button.dataset.id;
+            const goalType = button.dataset.type;
+            
+            if (goalId && goalType) {
+                deleteGoal(goalId, goalType);
+            }
+        });
+    }
+    
     // Close modal on outside click
-    window.addEventListener('click', (event) => {
+    window.addEventListener('click', function(event) {
         const modal = document.getElementById('goalModal');
         if (event.target === modal) {
             hideModal();
