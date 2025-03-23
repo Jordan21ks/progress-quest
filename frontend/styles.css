@@ -497,6 +497,11 @@ h1 {
   position: relative; /* Create stacking context */
 }
 
+/* Ensure register-templates only shows in register form */
+#loginForm .register-templates {
+  display: none;
+}
+
 .template-card {
   background: rgba(0, 0, 48, 0.7);
   border: 2px solid var(--ff-border);
