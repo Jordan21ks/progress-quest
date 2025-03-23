@@ -85,6 +85,65 @@ body {
   display: none;
 }
 
+/* Template styling for registration page */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-top: 15px;
+}
+
+.template-card {
+  background: rgba(0, 0, 48, 0.6);
+  border: 2px solid var(--ff-border);
+  border-radius: 10px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.template-card:hover, .template-card.selected {
+  background: rgba(74, 144, 226, 0.2);
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  border-color: var(--ff-gold);
+}
+
+.template-card h3 {
+  color: var(--ff-gold);
+  margin-top: 0;
+  font-size: 0.9em;
+  border-bottom: 1px solid var(--ff-border);
+  padding-bottom: 8px;
+}
+
+.template-description {
+  font-size: 0.7em;
+  margin-bottom: 10px;
+  color: var(--ff-text);
+}
+
+.template-skills {
+  margin-top: 10px;
+}
+
+.template-skills h4 {
+  margin-bottom: 8px;
+  font-size: 0.7em;
+  color: var(--ff-crystal);
+}
+
+.template-skills ul {
+  list-style-type: none;
+  padding-left: 5px;
+  font-size: 0.6em;
+}
+
+.template-skills li {
+  margin-bottom: 5px;
+}
+
 h1 {
   color: var(--ff-crystal);
   text-shadow: 0 0 10px var(--ff-blue);
