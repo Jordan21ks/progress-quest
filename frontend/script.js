@@ -291,13 +291,11 @@ function getTimelineStatus(item) {
     // We should never display this deadline - it's just a placeholder
     
     // First check if the deadline exists and isn't the default placeholder '2025-12-31'
-    // There could be many patterns of default deadlines used in the past, so be extra strict
+    // We want to filter out default deadlines but allow user-set deadlines
     const hasValidDeadline = item.deadline && 
                            item.deadline !== null && 
                            item.deadline !== '' &&
-                           item.deadline !== '2025-12-31' &&
-                           !item.deadline.includes('2025-12-31') &&
-                           !item.deadline.includes('2025');
+                           item.deadline !== '2025-12-31';
     
     // Only check for future dates if we have a valid non-default deadline
     let isInFuture = false;
@@ -383,13 +381,11 @@ function renderProgressBar(container, item, isFinancial = false) {
     // We should never display this deadline - it's just a placeholder
     
     // First check if the deadline exists and isn't the default placeholder '2025-12-31'
-    // There could be many patterns of default deadlines used in the past, so be extra strict
+    // We want to filter out default deadlines but allow user-set deadlines
     const hasValidDeadline = item.deadline && 
                            item.deadline !== null && 
                            item.deadline !== '' &&
-                           item.deadline !== '2025-12-31' &&
-                           !item.deadline.includes('2025-12-31') &&
-                           !item.deadline.includes('2025');
+                           item.deadline !== '2025-12-31';
     
     // Only check for future dates if we have a valid non-default deadline
     let isInFuture = false;
