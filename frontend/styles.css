@@ -34,11 +34,12 @@ body {
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 15px;
+  padding: 15px 10px;
   background: var(--ff-menu-bg);
   border: 2px solid var(--ff-border);
   border-radius: 10px;
   box-shadow: 0 0 20px rgba(74, 144, 226, 0.2);
+  width: 100%;
   box-sizing: border-box;
   flex: 1;
 }
@@ -171,13 +172,13 @@ h1 {
 
 .progress-container {
   margin-bottom: 20px;
-  padding: 15px;
+  padding: 12px;
   border: 1px solid var(--ff-border);
   border-radius: 5px;
   background: rgba(0, 0, 48, 0.5);
   transition: all 0.3s ease;
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .progress-container:hover {
@@ -188,15 +189,59 @@ h1 {
 .progress-label {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   color: var(--ff-gold);
   align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.95em;
 }
 
 .level-display {
   font-size: 0.7em;
   color: var(--ff-crystal);
   margin-left: 8px;
+}
+
+/* Mobile optimizations */
+@media (max-width: 640px) {
+  .progress-label {
+    font-size: 0.85em;
+  }
+  
+  .progress-container {
+    padding: 10px 8px;
+    margin-bottom: 15px;
+  }
+  
+  .timeline-info {
+    font-size: 0.8em;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .level-display {
+    font-size: 0.65em;
+  }
+  
+  .container h1 {
+    font-size: 1.2em;
+  }
+  
+  .progress-section h2 {
+    font-size: 1em;
+    margin: 15px 0 10px;
+  }
+  
+  .header {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .user-controls {
+    justify-content: center;
+    width: 100%;
+  }
 }
 
 .progress-bar {
