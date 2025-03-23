@@ -310,6 +310,9 @@ function renderProgressBar(container, item, isFinancial = false) {
     // Parse previous percentage for milestone detection
     const prevPercentage = parseFloat(previousPercentage) || 0;
 
+    // Check if we have sufficient data for prediction and status
+    const hasSufficientData = item.history && item.history.length >= 2;
+    
     div.innerHTML = `
         <div class="progress-label">
             <span>${emoji} ${item.name}<span class="level-display">(Lv. ${item.level})</span></span>
@@ -320,8 +323,8 @@ function renderProgressBar(container, item, isFinancial = false) {
         </div>
         <div class="timeline-info" style="color: ${timelineStatus.color}">
             <span>⏰ Deadline: ${formatDate(item.deadline)} (${daysLeft} days)</span>
-            <span>🎯 Predicted: ${prediction ? formatDate(prediction) : 'Insufficient data'}</span>
-            <span>📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>
+            ${hasSufficientData ? `<span>🎯 Predicted: ${prediction ? formatDate(prediction) : 'Calculating...'}</span>` : ''}
+            ${hasSufficientData ? `<span>📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>` : ''}
         </div>
     `;
 
