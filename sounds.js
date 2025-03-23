@@ -1,5 +1,5 @@
 // Sound functions for the application
-export function playLevelUpSound() {
+function playLevelUpSound() {
     try {
         const audio = new Audio('sounds/level-up.mp3');
         audio.play();
@@ -8,11 +8,17 @@ export function playLevelUpSound() {
     }
 }
 
-export function playVictorySound() {
+function playVictorySound() {
     try {
         const audio = new Audio('sounds/victory.mp3');
         audio.play();
     } catch (error) {
         console.error('Error playing victory sound:', error);
     }
+}
+
+// Make functions globally available
+if (typeof window !== 'undefined') {
+    window.playLevelUpSound = playLevelUpSound;
+    window.playVictorySound = playVictorySound;
 }

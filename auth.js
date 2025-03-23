@@ -267,18 +267,30 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const password = document.getElementById('register-password').value;
     
     try {
+        console.log('Attempting to register with template:', selectedTemplate);
+        
         const response = await fetch('https://experience-points-backend.onrender.com/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
+            mode: 'cors',
             body: JSON.stringify({ username, password, template: selectedTemplate })
         });
         
+        console.log('Registration response status:', response.status);
+        
         const data = await response.json();
+        console.log('Registration response data:', data);
         
         if (response.ok) {
-            playVictorySound();
+            try {
+                playVictorySound(); // Use the globally available function
+            } catch (soundError) {
+                console.error('Error playing sound but continuing registration:', soundError);
+            }
+            
             localStorage.setItem('token', data.token);
             localStorage.setItem('username', data.user.username);
             window.location.href = 'index.html';
@@ -287,7 +299,8 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
             errorDiv.style.display = 'block';
         }
     } catch (error) {
-        errorDiv.textContent = 'Connection error. Please try again.';
+        console.error('Registration error details:', error);
+        errorDiv.textContent = 'Connection error. Please try again: ' + error.message;
         errorDiv.style.display = 'block';
     }
 });
