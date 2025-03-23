@@ -1,0 +1,6 @@
+# Security Policy
+Contact: mailto:security@experiencepoints.app
+Expires: 2026-03-23T12:00:00.000Z
+Preferred-Languages: en
+Canonical: https://experiencepoints.app/.well-known/security.txt
+Policy: https://experiencepoints.app/security-policy.html

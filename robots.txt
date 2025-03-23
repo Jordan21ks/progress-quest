@@ -1,0 +1,23 @@
+User-agent: *
+Allow: /
+Sitemap: https://experiencepoints.app/sitemap.xml
+
+# Search engine crawling rules
+User-agent: Googlebot
+Allow: /
+User-agent: Bingbot
+Allow: /
+User-agent: Slurp
+Allow: /
+
+# Security scanner rules
+User-agent: McAfeeSecure
+Allow: /
+User-agent: Zscaler
+Allow: /
+User-agent: PaloAltoNetworks
+Allow: /
+
+# Disallow non-content directories
+Disallow: /backend/
+Disallow: /.git/
