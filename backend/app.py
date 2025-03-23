@@ -8,19 +8,6 @@ import jwt
 from functools import wraps
 
 app = Flask(__name__)
-# Configure CORS
-allowed_origins = [
-    'https://experiencepoints.app',  # Production
-    'http://experiencepoints.app',   # Production HTTP (redirects to HTTPS)
-    'http://localhost:8080'         # Local development
-]
-
-CORS(app, resources={r"/api/*": {
-    "origins": "*" if DEBUG else allowed_origins,  # Allow all origins in development
-    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Add DELETE method
-    "allow_headers": ["Content-Type", "Authorization"],
-    "expose_headers": ["Content-Type"]
-}})
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -37,6 +24,20 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Environment-specific settings
 DEBUG = os.environ.get('FLASK_ENV') == 'development'
+
+# Configure CORS
+allowed_origins = [
+    'https://experiencepoints.app',  # Production
+    'http://experiencepoints.app',   # Production HTTP (redirects to HTTPS)
+    'http://localhost:8080'         # Local development
+]
+
+CORS(app, resources={r"/api/*": {
+    "origins": "*" if DEBUG else allowed_origins,  # Allow all origins in development
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Add DELETE method
+    "allow_headers": ["Content-Type", "Authorization"],
+    "expose_headers": ["Content-Type"]
+}})
 
 db = SQLAlchemy(app)
 
