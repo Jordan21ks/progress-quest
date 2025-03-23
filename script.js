@@ -298,19 +298,23 @@ function getTimelineStatus(item) {
     
     console.log('Has valid deadline:', hasValidDeadline);
     
-    // Check if deadline is in the future
-    let isInFuture = false;
+    // FIXED: We will now show ALL deadlines that are not the default placeholder
+    // Users may want to set deadlines in the past for reference
+    let isInFuture = true; // Default to true to show all non-default deadlines
+    
     if (hasValidDeadline) {
         const deadlineDate = new Date(item.deadline);
         const now = new Date();
-        isInFuture = deadlineDate > now;
+        // We still calculate this for logging but don't use it to hide deadlines
+        const actuallyInFuture = deadlineDate > now;
         console.log('Deadline date:', deadlineDate);
         console.log('Current date:', now);
-        console.log('Is in future:', isInFuture);
+        console.log('Is in future:', actuallyInFuture);
     }
     
-    // Only require that the deadline is valid and in the future
-    const hasDeadline = hasValidDeadline && isInFuture;
+    // Now we only require that the deadline is valid (not the default)
+    // We're no longer filtering by future/past
+    const hasDeadline = hasValidDeadline;
     console.log('Will show deadline:', hasDeadline);
     if (!hasDeadline) {
         return { status: 'in-progress', color: 'var(--ff-crystal)' };
@@ -394,19 +398,23 @@ function renderProgressBar(container, item, isFinancial = false) {
     
     console.log('Has valid deadline:', hasValidDeadline);
     
-    // Check if deadline is in the future
-    let isInFuture = false;
+    // FIXED: We will now show ALL deadlines that are not the default placeholder
+    // Users may want to set deadlines in the past for reference
+    let isInFuture = true; // Default to true to show all non-default deadlines
+    
     if (hasValidDeadline) {
         const deadlineDate = new Date(item.deadline);
         const now = new Date();
-        isInFuture = deadlineDate > now;
+        // We still calculate this for logging but don't use it to hide deadlines
+        const actuallyInFuture = deadlineDate > now;
         console.log('Deadline date:', deadlineDate);
         console.log('Current date:', now);
-        console.log('Is in future:', isInFuture);
+        console.log('Is in future:', actuallyInFuture);
     }
     
-    // Only require that the deadline is valid and in the future
-    const hasDeadline = hasValidDeadline && isInFuture;
+    // Now we only require that the deadline is valid (not the default)
+    // We're no longer filtering by future/past
+    const hasDeadline = hasValidDeadline;
     console.log('Will show deadline:', hasDeadline);
     
     // Only include prediction and status if we have a valid prediction - not just valid history entries
