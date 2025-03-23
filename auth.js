@@ -1,5 +1,5 @@
-// No need to import playVictorySound as it's now globally available
-// Using regular function from script.js
+// Simple auth.js file without modules
+// This handles login and registration functionality
 
 // Skill emojis mapping
 const skillEmojis = {

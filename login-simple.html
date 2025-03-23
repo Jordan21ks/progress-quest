@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Progress Quest - Login</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Additional styles for auth page */
+        .auth-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .auth-tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: white;
+            opacity: 0.7;
+        }
+        
+        .auth-tab.active {
+            opacity: 1;
+            border-bottom: 2px solid #4CAF50;
+        }
+        
+        .auth-form {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .auth-form input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .auth-form button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        
+        .auth-form button:hover {
+            background: #3e8e41;
+        }
+        
+        .error-message {
+            color: #f44336;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        /* Template selection */
+        .template-selection {
+            margin-top: 20px;
+        }
+        
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .template-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            padding: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .template-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .template-card.selected {
+            border: 2px solid #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+        }
+        
+        .template-card h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        
+        .template-description {
+            color: rgba(255, 255, 255, 0.7);
+            margin-bottom: 15px;
+            flex-grow: 1;
+        }
+        
+        .template-skills h4 {
+            margin-bottom: 5px;
+            color: rgba(255, 255, 255, 0.9);
+        }
+        
+        .template-skills ul {
+            padding-left: 20px;
+            color: rgba(255, 255, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">Progress Quest</div>
+        <div class="slogan">Track your journey to mastery</div>
+    </header>
+    
+    <div class="auth-container">
+        <div class="auth-tabs">
+            <div class="auth-tab active" data-tab="login">Login</div>
+            <div class="auth-tab" data-tab="register">Register</div>
+        </div>
+        
+        <form id="loginForm" class="auth-form">
+            <h2>Login to Your Account</h2>
+            <div id="login-error" class="error-message"></div>
+            
+            <div class="form-group">
+                <input type="text" id="login-username" placeholder="Username" required>
+            </div>
+            
+            <div class="form-group">
+                <input type="password" id="login-password" placeholder="Password" required>
+            </div>
+            
+            <button type="submit">Login</button>
+        </form>
+        
+        <form id="registerForm" class="auth-form" style="display: none;">
+            <h2>Create Your Account</h2>
+            <div id="register-error" class="error-message"></div>
+            
+            <div class="form-group">
+                <input type="text" id="register-username" placeholder="Choose a username" required>
+            </div>
+            
+            <div class="form-group">
+                <input type="password" id="register-password" placeholder="Choose a password" required>
+            </div>
+            
+            <div class="template-selection">
+                <h3>Choose a Template to Get Started</h3>
+                <p>Select a template below to start your journey:</p>
+                
+                <div class="template-grid">
+                    <!-- Templates will be loaded here dynamically -->
+                    <div>Loading templates...</div>
+                </div>
+            </div>
+            
+            <button type="submit">Create Account</button>
+        </form>
+    </div>
+    
+    <footer>
+        <div class="footer-content">
+            <p>&copy; 2024 Progress Quest. All rights reserved.</p>
+        </div>
+    </footer>
+    
+    <script src="register-fix.js"></script>
+</body>
+</html>
