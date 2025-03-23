@@ -261,17 +261,26 @@ function getDaysUntilDeadline(deadline) {
 
 // Get timeline status
 function getTimelineStatus(item) {
-    const daysLeft = getDaysUntilDeadline(item.deadline);
     const prediction = calculatePrediction(item);
     
+    // Check if the goal has been achieved
     if (isMastered(item.current, item.target)) {
         return { status: 'completed', color: 'var(--ff-gold)' };
     }
     
+    // Check if we have enough data for prediction
     if (!prediction) {
         return { status: 'no-data', color: 'var(--ff-text)' };
     }
     
+    // If no deadline, just show 'in progress' status
+    const hasDeadline = item.deadline && item.deadline !== '2025-12-31' && item.deadline !== null;
+    if (!hasDeadline) {
+        return { status: 'in-progress', color: 'var(--ff-crystal)' };
+    }
+    
+    // If deadline exists, calculate status based on prediction vs deadline
+    const daysLeft = getDaysUntilDeadline(item.deadline);
     const daysUntilPredicted = Math.ceil((prediction - new Date()) / (1000 * 60 * 60 * 24));
     
     if (daysUntilPredicted > daysLeft) {
@@ -310,11 +319,11 @@ function renderProgressBar(container, item, isFinancial = false) {
     // Parse previous percentage for milestone detection
     const prevPercentage = parseFloat(previousPercentage) || 0;
 
-    // Check if we have sufficient data for prediction and status
-    // Need at least 2 history entries with some days between them to show prediction
-    const hasSufficientData = item.history && 
-                            item.history.length >= 2 && 
-                            new Date(item.history[item.history.length-1].date) - new Date(item.history[0].date) >= 24*60*60*1000;
+    // Check if we have sufficient data for prediction and status - just need 2 history points
+    const hasSufficientData = item.history && item.history.length >= 2;
+    
+    // Only show deadline if it's explicitly set by the user
+    const hasDeadline = item.deadline && item.deadline !== '2025-12-31' && item.deadline !== null;
     
     div.innerHTML = `
         <div class="progress-label">
@@ -325,7 +334,7 @@ function renderProgressBar(container, item, isFinancial = false) {
             <div class="progress-fill" style="width: ${Math.min(percentage, 100)}%"></div>
         </div>
         <div class="timeline-info">
-            <span>⏰ Deadline: ${formatDate(item.deadline)} (${daysLeft} days)</span>
+            ${hasDeadline ? `<span>⏰ Deadline: ${formatDate(item.deadline)} (${daysLeft} days)</span>` : ''}
             ${hasSufficientData ? `
                 <span style="color: ${timelineStatus.color}">🎯 Predicted: ${prediction ? formatDate(prediction) : 'Calculating...'}</span>
                 <span style="color: ${timelineStatus.color}">📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>
