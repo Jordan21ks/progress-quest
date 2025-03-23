@@ -286,28 +286,32 @@ function getTimelineStatus(item) {
     }
     
     // If no deadline, just show 'in progress' status
-    // Only show deadlines that are explicitly added by the user and not default ones
-    // When a new user registers with a template, all deadlines start as '2025-12-31'
-    // We should never display this deadline - it's just a placeholder
+    // Simpler deadline validation to ensure user-added deadlines always show
+    // Add debugging to see what's happening with deadlines
+    console.log('Deadline for ' + item.name + ':', item.deadline);
     
-    // First check if the deadline exists and isn't the default placeholder '2025-12-31'
-    // There could be many patterns of default deadlines used in the past, so be extra strict
+    // A deadline is valid if it exists and isn't the default value
     const hasValidDeadline = item.deadline && 
                            item.deadline !== null && 
-                           item.deadline !== '' &&
-                           item.deadline !== '2025-12-31' &&
-                           !item.deadline.includes('2025-12-31') &&
-                           !item.deadline.includes('2025');
+                           item.deadline !== '' && 
+                           item.deadline !== '2025-12-31';
     
-    // Only check for future dates if we have a valid non-default deadline
+    console.log('Has valid deadline:', hasValidDeadline);
+    
+    // Check if deadline is in the future
     let isInFuture = false;
     if (hasValidDeadline) {
         const deadlineDate = new Date(item.deadline);
-        isInFuture = deadlineDate > new Date();
+        const now = new Date();
+        isInFuture = deadlineDate > now;
+        console.log('Deadline date:', deadlineDate);
+        console.log('Current date:', now);
+        console.log('Is in future:', isInFuture);
     }
     
-    // Only show deadline if it's valid, not default, and in the future
+    // Only require that the deadline is valid and in the future
     const hasDeadline = hasValidDeadline && isInFuture;
+    console.log('Will show deadline:', hasDeadline);
     if (!hasDeadline) {
         return { status: 'in-progress', color: 'var(--ff-crystal)' };
     }
@@ -378,28 +382,32 @@ function renderProgressBar(container, item, isFinancial = false) {
         }
     }
     
-    // Only show deadlines that are explicitly added by the user and not default ones
-    // When a new user registers with a template, all deadlines start as '2025-12-31'
-    // We should never display this deadline - it's just a placeholder
+    // Simpler deadline validation to ensure user-added deadlines always show
+    // Add debugging to see what's happening with deadlines
+    console.log('Deadline for ' + item.name + ':', item.deadline);
     
-    // First check if the deadline exists and isn't the default placeholder '2025-12-31'
-    // There could be many patterns of default deadlines used in the past, so be extra strict
+    // A deadline is valid if it exists and isn't the default value
     const hasValidDeadline = item.deadline && 
                            item.deadline !== null && 
-                           item.deadline !== '' &&
-                           item.deadline !== '2025-12-31' &&
-                           !item.deadline.includes('2025-12-31') &&
-                           !item.deadline.includes('2025');
+                           item.deadline !== '' && 
+                           item.deadline !== '2025-12-31';
     
-    // Only check for future dates if we have a valid non-default deadline
+    console.log('Has valid deadline:', hasValidDeadline);
+    
+    // Check if deadline is in the future
     let isInFuture = false;
     if (hasValidDeadline) {
         const deadlineDate = new Date(item.deadline);
-        isInFuture = deadlineDate > new Date();
+        const now = new Date();
+        isInFuture = deadlineDate > now;
+        console.log('Deadline date:', deadlineDate);
+        console.log('Current date:', now);
+        console.log('Is in future:', isInFuture);
     }
     
-    // Only show deadline if it's valid, not default, and in the future
+    // Only require that the deadline is valid and in the future
     const hasDeadline = hasValidDeadline && isInFuture;
+    console.log('Will show deadline:', hasDeadline);
     
     // Only include prediction and status if we have a valid prediction - not just valid history entries
     const hasPrediction = prediction !== null && prediction !== undefined;
