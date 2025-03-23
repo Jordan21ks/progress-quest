@@ -946,4 +946,447 @@ document.addEventListener('DOMContentLoaded', async () => {
             hideModal();
         }
     });
+    
+    // Sharing functionality
+    function loadFriends() {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            fetch('/api/friends', {
+                method: 'GET',
+                headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load friends');
+                }
+                return response.json();
+            })
+            .then(data => {
+                renderFriendsList(data.friends);
+            })
+            .catch(error => {
+                console.error('Error loading friends:', error);
+            });
+        } catch (error) {
+            console.error('Error loading friends:', error);
+        }
+    }
+
+    function loadFriendRequests() {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            fetch('/api/friends/requests', {
+                method: 'GET',
+                headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to load friend requests');
+                }
+                return response.json();
+            })
+            .then(data => {
+                renderFriendRequests(data.requests);
+            })
+            .catch(error => {
+                console.error('Error loading friend requests:', error);
+            });
+        } catch (error) {
+            console.error('Error loading friend requests:', error);
+        }
+    }
+
+    function renderFriendsList(friends) {
+        const friendsList = document.getElementById('friends-list');
+        if (!friendsList) return;
+
+        if (friends.length === 0) {
+            friendsList.innerHTML = '<p>You have no friends yet. Add some friends to share your progress!</p>';
+            return;
+        }
+
+        let html = '';
+        friends.forEach(friend => {
+            html += `
+                <div class="friend-card">
+                    <span class="friend-name">${friend.username}</span>
+                    <div class="friend-actions">
+                        <button class="btn view-profile-btn" data-username="${friend.username}">View Profile</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        friendsList.innerHTML = html;
+
+        // Add event listeners
+        const viewProfileBtns = friendsList.querySelectorAll('.view-profile-btn');
+        viewProfileBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const username = btn.dataset.username;
+                // Open friend's profile in a new tab/window
+                window.open(`/profile/${username}`, '_blank');
+            });
+        });
+    }
+
+    function renderFriendRequests(requests) {
+        const requestsContainer = document.getElementById('friend-requests');
+        if (!requestsContainer) return;
+
+        if (requests.length === 0) {
+            requestsContainer.innerHTML = '<p>No pending friend requests.</p>';
+            return;
+        }
+
+        let html = '';
+        requests.forEach(request => {
+            html += `
+                <div class="request-card">
+                    <span class="requester-name">${request.username}</span>
+                    <div class="request-actions">
+                        <button class="accept-btn" data-request-id="${request.request_id}">Accept</button>
+                        <button class="reject-btn" data-request-id="${request.request_id}">Reject</button>
+                    </div>
+                </div>
+            `;
+        });
+
+        requestsContainer.innerHTML = html;
+
+        // Add event listeners
+        const acceptBtns = requestsContainer.querySelectorAll('.accept-btn');
+        const rejectBtns = requestsContainer.querySelectorAll('.reject-btn');
+
+        acceptBtns.forEach(btn => {
+            btn.addEventListener('click', () => respondToFriendRequest(btn.dataset.requestId, 'accept'));
+        });
+
+        rejectBtns.forEach(btn => {
+            btn.addEventListener('click', () => respondToFriendRequest(btn.dataset.requestId, 'reject'));
+        });
+    }
+
+    function respondToFriendRequest(requestId, response) {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            fetch('/api/friends/respond', {
+                method: 'POST',
+                headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    request_id: requestId,
+                    response: response
+                })
+            })
+            .then(apiResponse => {
+                if (!apiResponse.ok) {
+                    throw new Error('Failed to respond to friend request');
+                }
+                return apiResponse.json();
+            })
+            .then(() => {
+                // Reload friend requests and friends list
+                loadFriendRequests();
+                loadFriends();
+            })
+            .catch(error => {
+                console.error('Error responding to friend request:', error);
+            });
+        } catch (error) {
+            console.error('Error responding to friend request:', error);
+        }
+    }
+
+    function sendFriendRequest() {
+        try {
+            const username = document.getElementById('friend-username').value.trim();
+            if (!username) {
+                alert('Please enter a username');
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            fetch('/api/friends/add', {
+                method: 'POST',
+                headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+                alert('Friend request sent successfully!');
+                document.getElementById('friend-username').value = '';
+            })
+            .catch(error => {
+                console.error('Error sending friend request:', error);
+                alert('An error occurred while sending the friend request');
+            });
+        } catch (error) {
+            console.error('Error sending friend request:', error);
+            alert('An error occurred while sending the friend request');
+        }
+    }
+
+    function updateProfileVisibility() {
+        try {
+            const visibility = document.getElementById('profile-visibility').value;
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            fetch('/api/profile/visibility', {
+                method: 'POST',
+                headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ visibility })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to update profile visibility');
+                }
+                return response.json();
+            })
+            .then(() => {
+                console.log('Profile visibility updated');
+            })
+            .catch(error => {
+                console.error('Error updating profile visibility:', error);
+            });
+        } catch (error) {
+            console.error('Error updating profile visibility:', error);
+        }
+    }
+
+    function generateShareLink() {
+        try {
+            const shareType = document.getElementById('share-type').value;
+            const expiryDays = document.getElementById('share-expiry').value;
+            let goalIds = null;
+
+            // If selected items, get the selected checkboxes
+            if (shareType === 'selected') {
+                const checkboxes = document.querySelectorAll('#share-items-container input[type="checkbox"]:checked');
+                if (checkboxes.length === 0) {
+                    alert('Please select at least one item to share');
+                    return;
+                }
+                goalIds = Array.from(checkboxes).map(cb => cb.value);
+            } else if (shareType === 'skills') {
+                goalIds = window.skills.map(item => item.id);
+            } else if (shareType === 'financial') {
+                goalIds = window.financialGoals.map(item => item.id);
+            }
+
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            const requestBody = {
+                goal_ids: goalIds,
+                expiry_days: expiryDays ? parseInt(expiryDays) : null
+            };
+
+            fetch('/api/profile/share', {
+                method: 'POST',
+                headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestBody)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to generate share link');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Show the share link container and populate the input
+                const shareLinkContainer = document.getElementById('share-link-container');
+                const shareLinkInput = document.getElementById('share-link');
+                
+                shareLinkContainer.style.display = 'block';
+                shareLinkInput.value = data.share_url;
+
+                // Setup social share buttons
+                setupSocialShareButtons(data.share_url);
+            })
+            .catch(error => {
+                console.error('Error generating share link:', error);
+                alert('An error occurred while generating the share link');
+            });
+        } catch (error) {
+            console.error('Error generating share link:', error);
+            alert('An error occurred while generating the share link');
+        }
+    }
+
+    function copyShareLink() {
+        const shareLinkInput = document.getElementById('share-link');
+        shareLinkInput.select();
+        document.execCommand('copy');
+        alert('Link copied to clipboard!');
+    }
+
+    function setupSocialShareButtons(shareUrl) {
+        const twitterBtn = document.getElementById('share-twitter');
+        const facebookBtn = document.getElementById('share-facebook');
+        const emailBtn = document.getElementById('share-email');
+
+        const text = 'Check out my progress on Experience Points!';
+        
+        twitterBtn.onclick = () => {
+            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`, '_blank');
+        };
+
+        facebookBtn.onclick = () => {
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank');
+        };
+
+        emailBtn.onclick = () => {
+            window.open(`mailto:?subject=${encodeURIComponent(text)}&body=${encodeURIComponent('Check out my progress: ' + shareUrl)}`, '_blank');
+        };
+    }
+
+    function populateShareItems() {
+        const shareType = document.getElementById('share-type').value;
+        const shareSelection = document.getElementById('share-selection');
+        const shareItemsContainer = document.getElementById('share-items-container');
+
+        if (shareType === 'selected') {
+            shareSelection.style.display = 'block';
+            
+            // Combine both types of goals
+            const allItems = [...window.skills, ...window.financialGoals];
+            
+            let html = '';
+            allItems.forEach(item => {
+                const emoji = skillEmojis[item.name] || '📊';
+                html += `
+                    <div class="share-item">
+                        <input type="checkbox" id="share-item-${item.id}" value="${item.id}">
+                        <label for="share-item-${item.id}">${emoji} ${item.name}</label>
+                    </div>
+                `;
+            });
+            
+            shareItemsContainer.innerHTML = html;
+        } else {
+            shareSelection.style.display = 'none';
+        }
+    }
+
+    function addShareButtonsToGoals() {
+        const goals = document.querySelectorAll('.progress-item');
+        
+        goals.forEach(goal => {
+            // Get the progress-label div
+            const labelDiv = goal.querySelector('.progress-label');
+            if (!labelDiv) return;
+            
+            // Get the first span (which contains the name)
+            const nameSpan = labelDiv.querySelector('span:first-child');
+            if (!nameSpan) return;
+            
+            // Create share button
+            const shareBtn = document.createElement('button');
+            shareBtn.className = 'goal-share-btn';
+            shareBtn.textContent = 'Share';
+            shareBtn.dataset.id = goal.dataset.id;
+            shareBtn.dataset.type = goal.dataset.type;
+            
+            // Add event listener
+            shareBtn.addEventListener('click', (e) => {
+                e.stopPropagation();  // Prevent triggering the parent's click event
+                shareSingleGoal(goal.dataset.id);
+            });
+            
+            // Append to the name span
+            nameSpan.appendChild(shareBtn);
+        });
+    }
+
+    function shareSingleGoal(goalId) {
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            // Generate a share link for just this goal
+            fetch('/api/profile/share', {
+                method: 'POST',
+                headers: {
+                    'Authorization': token,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    goal_ids: [goalId],
+                    expiry_days: 30  // Default to 30 days
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Failed to generate share link');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Show a simple prompt with the link
+                prompt('Share this link with your friends:', data.share_url);
+            })
+            .catch(error => {
+                console.error('Error sharing single goal:', error);
+                alert('An error occurred while generating the share link');
+            });
+        } catch (error) {
+            console.error('Error sharing single goal:', error);
+            alert('An error occurred while generating the share link');
+        }
+    }
+
+    // Initialize sharing features
+    if (localStorage.getItem('token')) {
+        // Set up event listeners for share tab
+        const generateShareLinkBtn = document.getElementById('generate-share-link');
+        const copyShareLinkBtn = document.getElementById('copy-share-link');
+        const shareTypeSelect = document.getElementById('share-type');
+        const profileVisibilitySelect = document.getElementById('profile-visibility');
+        const sendFriendRequestBtn = document.getElementById('send-friend-request');
+        const friendsBtn = document.getElementById('friendsBtn');
+        
+        if (generateShareLinkBtn) generateShareLinkBtn.addEventListener('click', generateShareLink);
+        if (copyShareLinkBtn) copyShareLinkBtn.addEventListener('click', copyShareLink);
+        if (shareTypeSelect) shareTypeSelect.addEventListener('change', populateShareItems);
+        if (profileVisibilitySelect) profileVisibilitySelect.addEventListener('change', updateProfileVisibility);
+        if (sendFriendRequestBtn) sendFriendRequestBtn.addEventListener('click', sendFriendRequest);
+        if (friendsBtn) friendsBtn.addEventListener('click', () => {
+            loadFriends();
+            loadFriendRequests();
+        });
+        
+        // Add share buttons to each goal after they're loaded
+        setTimeout(addShareButtonsToGoals, 1000);  // Small delay to ensure goals are rendered
+    }
 });
