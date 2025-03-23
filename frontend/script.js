@@ -290,11 +290,14 @@ function getTimelineStatus(item) {
     // When a new user registers with a template, all deadlines start as '2025-12-31'
     // We should never display this deadline - it's just a placeholder
     
-    // First check if the deadline exists and isn't the default placeholder
+    // First check if the deadline exists and isn't the default placeholder '2025-12-31'
+    // There could be many patterns of default deadlines used in the past, so be extra strict
     const hasValidDeadline = item.deadline && 
                            item.deadline !== null && 
                            item.deadline !== '' &&
-                           item.deadline !== '2025-12-31';
+                           item.deadline !== '2025-12-31' &&
+                           !item.deadline.includes('2025-12-31') &&
+                           !item.deadline.includes('2025');
     
     // Only check for future dates if we have a valid non-default deadline
     let isInFuture = false;
@@ -350,10 +353,13 @@ function renderProgressBar(container, item, isFinancial = false) {
     const prevPercentage = parseFloat(previousPercentage) || 0;
 
     // Check if we have sufficient data for prediction and status
-    // We'll consider a goal as having sufficient data if:
-    // 1. It has a history array with at least 2 entries AND
-    // 2. The entries are at least 1 day apart AND
-    // 3. There has been some progress made
+    // We now have much stricter requirements:
+    // 1. Must have at least 2 history entries
+    // 2. Entries must be at least 1 day apart
+    // 3. Must show real progress between entries
+    // 4. Must be able to actually calculate a meaningful prediction
+    
+    // First check if we have enough history entries
     const hasHistory = item.history && Array.isArray(item.history) && item.history.length >= 2;
     let hasSufficientData = false;
     
@@ -361,22 +367,29 @@ function renderProgressBar(container, item, isFinancial = false) {
         // Calculate time difference between first and last entry
         const firstEntry = item.history[0];
         const lastEntry = item.history[item.history.length - 1];
-        const daysDiff = (new Date(lastEntry.date) - new Date(firstEntry.date)) / (1000 * 60 * 60 * 24);
-        const valueChange = lastEntry.value - firstEntry.value;
         
-        // Only consider sufficient if at least 1 day apart and has progress
-        hasSufficientData = daysDiff >= 1 && valueChange > 0;
+        // Make sure dates exist
+        if (firstEntry.date && lastEntry.date) {
+            const daysDiff = (new Date(lastEntry.date) - new Date(firstEntry.date)) / (1000 * 60 * 60 * 24);
+            const valueChange = lastEntry.value - firstEntry.value;
+            
+            // Now require at least 1 full day AND positive progress
+            hasSufficientData = daysDiff >= 1 && valueChange > 0;
+        }
     }
     
     // Only show deadlines that are explicitly added by the user and not default ones
     // When a new user registers with a template, all deadlines start as '2025-12-31'
     // We should never display this deadline - it's just a placeholder
     
-    // First check if the deadline exists and isn't the default placeholder
+    // First check if the deadline exists and isn't the default placeholder '2025-12-31'
+    // There could be many patterns of default deadlines used in the past, so be extra strict
     const hasValidDeadline = item.deadline && 
                            item.deadline !== null && 
                            item.deadline !== '' &&
-                           item.deadline !== '2025-12-31';
+                           item.deadline !== '2025-12-31' &&
+                           !item.deadline.includes('2025-12-31') &&
+                           !item.deadline.includes('2025');
     
     // Only check for future dates if we have a valid non-default deadline
     let isInFuture = false;
@@ -388,6 +401,9 @@ function renderProgressBar(container, item, isFinancial = false) {
     // Only show deadline if it's valid, not default, and in the future
     const hasDeadline = hasValidDeadline && isInFuture;
     
+    // Only include prediction and status if we have a valid prediction - not just valid history entries
+    const hasPrediction = prediction !== null && prediction !== undefined;
+    
     div.innerHTML = `
         <div class="progress-label">
             <span>${emoji} ${item.name}<span class="level-display">(Lv. ${item.level})</span></span>
@@ -398,8 +414,8 @@ function renderProgressBar(container, item, isFinancial = false) {
         </div>
         <div class="timeline-info">
             ${hasDeadline ? `<span>⏰ Deadline: ${formatDate(item.deadline)} (${daysLeft} days)</span>` : ''}
-            ${hasSufficientData ? `
-                <span style="color: ${timelineStatus.color}">🎯 Predicted: ${prediction ? formatDate(prediction) : 'Calculating...'}</span>
+            ${(hasSufficientData && prediction !== null && prediction) ? `
+                <span style="color: ${timelineStatus.color}">🎯 Predicted: ${formatDate(prediction)}</span>
                 <span style="color: ${timelineStatus.color}">📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>
             ` : ''}
         </div>
@@ -691,7 +707,9 @@ export async function handleFormSubmit(event) {
             name,
             current,
             target,
-            deadline,
+            // Only include deadline if it was explicitly set by the user
+            // Set to null explicitly to ensure we don't get default deadlines
+            deadline: deadline && deadline.trim() !== '' ? deadline : null,
             type
         };
         

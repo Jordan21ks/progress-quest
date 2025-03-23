@@ -199,7 +199,7 @@ def register():
     
     if template and template in TEMPLATES:
         template_data = TEMPLATES[template]
-        default_deadline = datetime.now() + timedelta(days=90)
+        # No default deadline - deadline should be null for new registrations
         
         # Add skills
         if 'skills' in template_data:
@@ -210,7 +210,7 @@ def register():
                     target=skill['target'],
                     level=skill['level'],
                     type='skill',
-                    deadline=default_deadline,
+                    deadline=None,  # Set to None explicitly
                     user_id=user.id
                 )
                 db.session.add(goal)
@@ -226,7 +226,7 @@ def register():
                     target=fin['target'],
                     level=fin['level'],
                     type='financial',
-                    deadline=default_deadline,
+                    deadline=None,  # Set to None explicitly
                     user_id=user.id
                 )
                 db.session.add(goal)
