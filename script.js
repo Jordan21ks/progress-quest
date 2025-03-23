@@ -1,5 +1,7 @@
 import { playLevelUpSound, playVictorySound } from './sounds.js';
 
+// We'll make functions globally available at the end of the file
+
 // Global chart variable
 let progressRadarChart = null;
 
@@ -245,7 +247,7 @@ async function checkAuth() {
 }
 
 // Load goals from API
-export async function loadGoals() {
+async function loadGoals() {
     try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -681,12 +683,14 @@ function showEditForm(item, type, event) {
 }
 
 // Hide modal
-export function hideModal() {
+function hideModal() {
     document.getElementById('goalModal').style.display = 'none';
 }
 
+// Function will be made available globally at initialization
+
 // Delete a goal
-export async function deleteGoal(goalId, type) {
+async function deleteGoal(goalId, type) {
     if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
         return;
     }
@@ -768,7 +772,7 @@ function addHistoryEntry(item, value) {
 }
 
 // Handle form submission
-export async function handleFormSubmit(event) {
+async function handleFormSubmit(event) {
     event.preventDefault();
     
     try {
@@ -946,6 +950,8 @@ function logout() {
     window.location.href = 'login.html';
 }
 
+// Function will be made available globally at initialization
+
 // Show fun fact popup
 function showFunFact(name, fact, isFinancial = false) {
     // Remove any existing popups
@@ -996,6 +1002,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Load goals
     await loadGoals();
+    
+    // Make sure functions are globally available for DOM event handlers
+    window.showAddForm = showAddForm;
+    window.showEditForm = showEditForm;
+    window.deleteGoal = deleteGoal;
+    window.handleFormSubmit = handleFormSubmit;
+    window.hideModal = hideModal;
+    window.logout = logout;
     
     // Set up form handlers
     const goalForm = document.getElementById('goalForm');
