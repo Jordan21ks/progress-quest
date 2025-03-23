@@ -16,8 +16,8 @@ allowed_origins = [
 ]
 
 CORS(app, resources={r"/api/*": {
-    "origins": allowed_origins,
-    "methods": ["GET", "POST", "OPTIONS"],
+    "origins": "*" if DEBUG else allowed_origins,  # Allow all origins in development
+    "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Add DELETE method
     "allow_headers": ["Content-Type", "Authorization"],
     "expose_headers": ["Content-Type"]
 }})
