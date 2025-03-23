@@ -101,7 +101,7 @@ TEMPLATES = {
         'skills': [
             {'name': 'Outbound', 'current': 1, 'target': 10, 'level': 1},
             {'name': 'Discovery', 'current': 1, 'target': 10, 'level': 1},
-            {'name': 'Storytelling', 'current': 9, 'target': 10, 'level': 1},
+            {'name': 'Storytelling', 'current': 1, 'target': 10, 'level': 1},
             {'name': 'Consulting', 'current': 1, 'target': 10, 'level': 1},
             {'name': 'Multithreading', 'current': 1, 'target': 10, 'level': 1},
             {'name': 'Followups', 'current': 1, 'target': 10, 'level': 1},

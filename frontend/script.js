@@ -274,7 +274,11 @@ function getTimelineStatus(item) {
     }
     
     // If no deadline, just show 'in progress' status
-    const hasDeadline = item.deadline && item.deadline !== '2025-12-31' && item.deadline !== null;
+    // Default dates are 2025-12-31 or anything in 2025
+    const hasDeadline = item.deadline && 
+                      item.deadline !== '2025-12-31' && 
+                      item.deadline !== null && 
+                      !item.deadline.startsWith('2025-');
     if (!hasDeadline) {
         return { status: 'in-progress', color: 'var(--ff-crystal)' };
     }
@@ -320,10 +324,17 @@ function renderProgressBar(container, item, isFinancial = false) {
     const prevPercentage = parseFloat(previousPercentage) || 0;
 
     // Check if we have sufficient data for prediction and status - just need 2 history points
-    const hasSufficientData = item.history && item.history.length >= 2;
+    // We'll consider a goal as having sufficient data if:
+    // 1. It has a history array AND
+    // 2. The history array has at least 2 entries
+    const hasSufficientData = item.history && Array.isArray(item.history) && item.history.length >= 2;
     
-    // Only show deadline if it's explicitly set by the user
-    const hasDeadline = item.deadline && item.deadline !== '2025-12-31' && item.deadline !== null;
+    // Only show deadline if it's explicitly set by the user and not a default date
+    // Default dates are 2025-12-31 or anything in 2025
+    const hasDeadline = item.deadline && 
+                      item.deadline !== '2025-12-31' && 
+                      item.deadline !== null && 
+                      !item.deadline.startsWith('2025-');
     
     div.innerHTML = `
         <div class="progress-label">
@@ -718,11 +729,28 @@ export async function handleFormSubmit(event) {
                 }
             }
         } else {
-            // Add new goal
+            // Add new goal with initial history entry
+            const now = new Date().toISOString();
             list.push({
                 ...data,
-                history: []
+                history: [
+                    { date: now, value: current }
+                ]
             });
+            
+            // Add a second history entry with a small difference to trigger status display
+            setTimeout(() => {
+                const index = list.findIndex(item => item.name === name);
+                if (index >= 0) {
+                    // Add second history point 1 second later
+                    const secondEntry = { 
+                        date: new Date(new Date(now).getTime() + 1000).toISOString(), 
+                        value: current 
+                    };
+                    list[index].history.push(secondEntry);
+                    renderAll();
+                }
+            }, 500);
         }
         
         // Update display and close modal
