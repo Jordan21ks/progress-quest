@@ -302,6 +302,17 @@ async function loadGoals() {
         
         // Render progress bars
         renderAll();
+        
+        // Make sure to initialize and update the chart
+        if (!progressRadarChart) {
+            initProgressChart();
+        }
+        
+        // Debug logging for skills and financial goals
+        console.log('Skills loaded:', window.skills);
+        console.log('Financial goals loaded:', window.financialGoals);
+        
+        updateProgressChart();
     } catch (error) {
         console.error('Error loading goals:', error);
         // Only show alert if we have no goals
@@ -948,6 +959,13 @@ async function handleFormSubmit(event) {
         
         // Update display and close modal
         renderAll();
+        
+        // Explicitly update the radar chart
+        if (!progressRadarChart) {
+            initProgressChart();
+        }
+        updateProgressChart();
+        
         hideModal();
         
         // Reset the update flag after rendering

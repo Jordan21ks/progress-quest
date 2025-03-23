@@ -1,4 +1,5 @@
-import { playVictorySound } from './sounds.js';
+// No need to import playVictorySound as it's now globally available
+// Using regular function from script.js
 
 // Skill emojis mapping
 const skillEmojis = {
