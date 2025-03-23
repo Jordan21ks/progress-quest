@@ -128,7 +128,7 @@ TEMPLATES = {
     },
     'financial_assassin': {
         'name': 'The Financial Assassin',
-        'skills': [
+        'financial': [
             {'name': 'ETF Savings', 'current': 2000, 'target': 10000, 'level': 1},
             {'name': 'Cash Savings', 'current': 1000, 'target': 3000, 'level': 1},
             {'name': 'House Savings', 'current': 2000, 'target': 20000, 'level': 1}
@@ -282,7 +282,9 @@ def get_templates():
             {
                 'id': key,
                 'name': value['name'],
-                'skills': value.get('skills', [])
+                'description': value.get('description', ''),
+                'skills': value.get('skills', []),
+                'financial': value.get('financial', [])
             } 
             for key, value in TEMPLATES.items()
         ]
