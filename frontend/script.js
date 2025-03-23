@@ -274,10 +274,16 @@ function getTimelineStatus(item) {
     }
     
     // If no deadline, just show 'in progress' status
-    // Default dates are 2025-12-31
-    const hasDeadline = item.deadline && 
-                      item.deadline !== '2025-12-31' && 
-                      item.deadline !== null;
+    // Only show deadline if it's explicitly set by the user (not a default) and is in the future
+    const hasUserSetDeadline = item.deadline && item.deadline !== null;
+    
+    // Check if deadline is not the default and is in the future
+    const isDefaultDeadline = !item.deadline || item.deadline === '2025-12-31';
+    const deadlineDate = new Date(item.deadline);
+    const isInFuture = deadlineDate > new Date();
+    
+    // Show deadline only if user explicitly set it and it's in the future
+    const hasDeadline = hasUserSetDeadline && !isDefaultDeadline && isInFuture;
     if (!hasDeadline) {
         return { status: 'in-progress', color: 'var(--ff-crystal)' };
     }
@@ -328,11 +334,16 @@ function renderProgressBar(container, item, isFinancial = false) {
     // 2. The history array has at least 2 entries
     const hasSufficientData = item.history && Array.isArray(item.history) && item.history.length >= 2;
     
-    // Only show deadline if it's explicitly set by the user and not a default date
-    // Default dates are 2025-12-31
-    const hasDeadline = item.deadline && 
-                      item.deadline !== '2025-12-31' && 
-                      item.deadline !== null;
+    // Only show deadline if it's explicitly set by the user (not a default) and is in the future
+    const hasUserSetDeadline = item.deadline && item.deadline !== null;
+    
+    // Check if deadline is not the default and is in the future
+    const isDefaultDeadline = !item.deadline || item.deadline === '2025-12-31';
+    const deadlineDate = new Date(item.deadline);
+    const isInFuture = deadlineDate > new Date();
+    
+    // Show deadline only if user explicitly set it and it's in the future
+    const hasDeadline = hasUserSetDeadline && !isDefaultDeadline && isInFuture;
     
     div.innerHTML = `
         <div class="progress-label">
