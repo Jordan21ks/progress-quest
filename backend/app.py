@@ -39,6 +39,23 @@ CORS(app, resources={r"/api/*": {
     "expose_headers": ["Content-Type"]
 }})
 
+# Security headers middleware
+@app.after_request
+def add_security_headers(response):
+    # Set strict HTTPS
+    response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    # Prevent clickjacking
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    # Content type protection
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    # XSS protection
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    # Referrer policy
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    # Permissions policy
+    response.headers['Permissions-Policy'] = 'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()'
+    return response
+
 db = SQLAlchemy(app)
 
 # Token required decorator
