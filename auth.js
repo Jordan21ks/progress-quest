@@ -188,7 +188,10 @@ async function loadTemplates() {
                 console.log(`Selected template: ${template.id}`);
                 document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
-                selectedTemplate = template.id;
+                
+                // Use window.selectedTemplate to ensure global accessibility
+                window.selectedTemplate = template.id;
+                console.log('Template selected and stored in window:', window.selectedTemplate);
                 
                 // Clear error message
                 document.getElementById('register-error').style.display = 'none';
@@ -211,8 +214,7 @@ async function loadTemplates() {
     }
 }
 
-// Initialize template selection
-let selectedTemplate = null;
+// Template selection is managed via window.selectedTemplate
 
 // Load templates when page loads
 document.addEventListener('DOMContentLoaded', loadTemplates);
@@ -251,13 +253,19 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 });
 
+// Declare window.selectedTemplate to ensure global accessibility
+window.selectedTemplate = null;
+
 // Handle registration
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const errorDiv = document.getElementById('register-error');
+    errorDiv.textContent = '';
+    errorDiv.style.display = 'none';
     
-    if (!selectedTemplate) {
+    // Check if template is selected
+    if (!window.selectedTemplate) {
         errorDiv.textContent = 'Please select a template to begin your journey!';
         errorDiv.style.display = 'block';
         return;
@@ -266,9 +274,32 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
     
+    if (!username || !password) {
+        errorDiv.textContent = 'Please enter both username and password';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    console.log('Starting registration process...');
+    console.log('Selected template:', window.selectedTemplate);
+    
+    // Show loading state
+    const submitBtn = document.querySelector('#registerForm button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.textContent = 'Creating Account...';
+    submitBtn.disabled = true;
+    
     try {
-        console.log('Attempting to register with template:', selectedTemplate);
+        // Create registration payload
+        const payload = {
+            username,
+            password,
+            template: window.selectedTemplate
+        };
         
+        console.log('Registration payload:', JSON.stringify(payload));
+        
+        // Make API request
         const response = await fetch('https://experience-points-backend.onrender.com/api/register', {
             method: 'POST',
             headers: {
@@ -276,31 +307,53 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
                 'Accept': 'application/json'
             },
             mode: 'cors',
-            body: JSON.stringify({ username, password, template: selectedTemplate })
+            body: JSON.stringify(payload)
         });
         
         console.log('Registration response status:', response.status);
         
-        const data = await response.json();
-        console.log('Registration response data:', data);
+        // Get response data
+        let data;
+        try {
+            data = await response.json();
+            console.log('Registration response data:', data);
+        } catch (jsonError) {
+            console.error('Error parsing JSON response:', jsonError);
+            throw new Error('Invalid response from server');
+        }
         
+        // Handle response
         if (response.ok) {
+            // Play sound if available
             try {
-                playVictorySound(); // Use the globally available function
+                if (typeof playVictorySound === 'function') {
+                    playVictorySound();
+                }
             } catch (soundError) {
-                console.error('Error playing sound but continuing registration:', soundError);
+                console.warn('Could not play victory sound:', soundError);
             }
             
+            // Save user data
             localStorage.setItem('token', data.token);
             localStorage.setItem('username', data.user.username);
+            
+            // Redirect to main app
+            console.log('Registration successful, redirecting...');
             window.location.href = 'index.html';
         } else {
-            errorDiv.textContent = data.error || 'Registration failed';
+            // Show error message
+            errorDiv.textContent = data.error || 'Registration failed. Please try again.';
             errorDiv.style.display = 'block';
+            console.error('Registration failed:', data.error);
         }
     } catch (error) {
-        console.error('Registration error details:', error);
-        errorDiv.textContent = 'Connection error. Please try again: ' + error.message;
+        // Handle network or other errors
+        console.error('Registration error:', error);
+        errorDiv.textContent = 'Connection error. Please try again later.';
         errorDiv.style.display = 'block';
+    } finally {
+        // Reset button state
+        submitBtn.textContent = originalBtnText;
+        submitBtn.disabled = false;
     }
 });
