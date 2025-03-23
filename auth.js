@@ -56,24 +56,12 @@ tabs.forEach(tab => {
 
 // Load and render templates
 async function loadTemplates() {
-    console.log('Attempting to load templates from backend');
     try {
-        const response = await fetch('http://localhost:5001/api/templates', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache'
-            }
-        });
-        console.log('Template response status:', response.status);
-        
+        const response = await fetch('https://experience-points-backend.onrender.com/api/templates');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
         const data = await response.json();
-        console.log('Templates received:', data);
-        
         const templateGrid = document.querySelector('.template-grid');
         
         if (!templateGrid) {
@@ -191,22 +179,14 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const password = document.getElementById('login-password').value;
     const errorDiv = document.getElementById('login-error');
     
-    console.log(`Attempting login for user: ${username}`);
-    errorDiv.textContent = 'Logging in...';
-    errorDiv.style.display = 'block';
-    
     try {
-        console.log('Sending login request to backend');
-        const response = await fetch('http://localhost:5001/api/login', {
+        const response = await fetch('https://experience-points-backend.onrender.com/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache'
             },
             body: JSON.stringify({ username, password })
         });
-        
-        console.log('Login response status:', response.status);
         
         const data = await response.json();
         
@@ -240,22 +220,14 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
     
-    console.log(`Attempting to register user: ${username} with template: ${selectedTemplate}`);
-    errorDiv.textContent = 'Registering...';
-    errorDiv.style.display = 'block';
-    
     try {
-        console.log('Sending registration request to backend');
-        const response = await fetch('http://localhost:5001/api/register', {
+        const response = await fetch('https://experience-points-backend.onrender.com/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache'
             },
             body: JSON.stringify({ username, password, template: selectedTemplate })
         });
-        
-        console.log('Registration response status:', response.status);
         
         const data = await response.json();
         
