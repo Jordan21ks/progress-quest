@@ -311,7 +311,10 @@ function renderProgressBar(container, item, isFinancial = false) {
     const prevPercentage = parseFloat(previousPercentage) || 0;
 
     // Check if we have sufficient data for prediction and status
-    const hasSufficientData = item.history && item.history.length >= 2;
+    // Need at least 2 history entries with some days between them to show prediction
+    const hasSufficientData = item.history && 
+                            item.history.length >= 2 && 
+                            new Date(item.history[item.history.length-1].date) - new Date(item.history[0].date) >= 24*60*60*1000;
     
     div.innerHTML = `
         <div class="progress-label">
@@ -321,10 +324,12 @@ function renderProgressBar(container, item, isFinancial = false) {
         <div class="progress-bar">
             <div class="progress-fill" style="width: ${Math.min(percentage, 100)}%"></div>
         </div>
-        <div class="timeline-info" style="color: ${timelineStatus.color}">
+        <div class="timeline-info">
             <span>⏰ Deadline: ${formatDate(item.deadline)} (${daysLeft} days)</span>
-            ${hasSufficientData ? `<span>🎯 Predicted: ${prediction ? formatDate(prediction) : 'Calculating...'}</span>` : ''}
-            ${hasSufficientData ? `<span>📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>` : ''}
+            ${hasSufficientData ? `
+                <span style="color: ${timelineStatus.color}">🎯 Predicted: ${prediction ? formatDate(prediction) : 'Calculating...'}</span>
+                <span style="color: ${timelineStatus.color}">📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>
+            ` : ''}
         </div>
     `;
 
