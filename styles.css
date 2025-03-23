@@ -442,12 +442,14 @@ h1 {
 /* Auth styles */
 .auth-container {
   max-width: 800px;
-  margin: 40px auto;
+  margin: 40px auto 80px; /* Added bottom margin to avoid footer overlap */
   padding: 20px;
   background: var(--ff-menu-bg);
   border: 2px solid var(--ff-border);
   border-radius: 10px;
   box-shadow: 0 0 30px rgba(74, 144, 226, 0.2);
+  position: relative;
+  z-index: 5; /* Ensure it's above the footer but below potential modals */
 }
 
 .auth-tabs {
@@ -487,10 +489,12 @@ h1 {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 15px;
   margin-top: 15px;
-  max-height: 60vh;
+  max-height: 50vh; /* Reduced to accommodate footer */
   overflow-y: auto;
   padding: 5px;
   -webkit-overflow-scrolling: touch;
+  z-index: 10; /* Ensure templates appear above other elements */
+  position: relative; /* Create stacking context */
 }
 
 .template-card {
@@ -708,7 +712,7 @@ h1 {
 
 /* Footer styles for business legitimacy */
 .footer {
-    margin-top: 30px;
+    margin-top: auto; /* Push to bottom of flex container */
     width: 100%;
     background: var(--ff-menu-bg);
     border-top: 2px solid var(--ff-border);
@@ -717,6 +721,9 @@ h1 {
     box-shadow: 0 0 20px rgba(74, 144, 226, 0.2);
     font-size: 0.6em;
     line-height: 1.8;
+    position: relative;
+    z-index: 1; /* Keep footer below other content */
+    margin-top: 50px; /* Additional spacing from content */
 }
 
 .footer-content {
@@ -743,6 +750,24 @@ h1 {
 .footer-links a:hover {
     color: var(--ff-gold);
     text-decoration: underline;
+}
+
+.security-badges {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.security-badge {
+    height: 30px;
+    margin: 0 8px;
+    opacity: 0.8;
+    transition: opacity 0.3s;
+}
+
+.security-badge:hover {
+    opacity: 1;
 }
 
 /* Legal pages styles */
