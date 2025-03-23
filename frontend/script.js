@@ -274,16 +274,14 @@ function getTimelineStatus(item) {
     }
     
     // If no deadline, just show 'in progress' status
-    // Only show deadline if it's explicitly set by the user (not a default) and is in the future
-    const hasUserSetDeadline = item.deadline && item.deadline !== null;
-    
-    // Check if deadline is not the default and is in the future
-    const isDefaultDeadline = !item.deadline || item.deadline === '2025-12-31';
+    // Only show deadline if it exists and is in the future
+    // We want to show ANY future date the user sets, including 2025-12-31
+    const hasValidDeadline = item.deadline && item.deadline !== null;
     const deadlineDate = new Date(item.deadline);
     const isInFuture = deadlineDate > new Date();
     
-    // Show deadline only if user explicitly set it and it's in the future
-    const hasDeadline = hasUserSetDeadline && !isDefaultDeadline && isInFuture;
+    // Show deadline if it's in the future
+    const hasDeadline = hasValidDeadline && isInFuture;
     if (!hasDeadline) {
         return { status: 'in-progress', color: 'var(--ff-crystal)' };
     }
@@ -334,16 +332,14 @@ function renderProgressBar(container, item, isFinancial = false) {
     // 2. The history array has at least 2 entries
     const hasSufficientData = item.history && Array.isArray(item.history) && item.history.length >= 2;
     
-    // Only show deadline if it's explicitly set by the user (not a default) and is in the future
-    const hasUserSetDeadline = item.deadline && item.deadline !== null;
-    
-    // Check if deadline is not the default and is in the future
-    const isDefaultDeadline = !item.deadline || item.deadline === '2025-12-31';
+    // Only show deadline if it exists and is in the future
+    // We want to show ANY future date the user sets, including 2025-12-31
+    const hasValidDeadline = item.deadline && item.deadline !== null;
     const deadlineDate = new Date(item.deadline);
     const isInFuture = deadlineDate > new Date();
     
-    // Show deadline only if user explicitly set it and it's in the future
-    const hasDeadline = hasUserSetDeadline && !isDefaultDeadline && isInFuture;
+    // Show deadline if it's in the future
+    const hasDeadline = hasValidDeadline && isInFuture;
     
     div.innerHTML = `
         <div class="progress-label">
