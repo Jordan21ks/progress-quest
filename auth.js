@@ -70,32 +70,24 @@ async function loadTemplates() {
     
     try {
         console.log('Fetching templates from API...');
-        // Try local server first (for development), then fall back to production
-        let apiUrl = 'http://localhost:5001/api/templates';
-        let response;
+        // Use production API endpoint
+        const apiUrl = 'https://experience-points-backend.onrender.com/api/templates';
+        console.log('Using API endpoint:', apiUrl);
         
-        try {
-            console.log('Trying local API first...');
-            response = await fetch(apiUrl, { 
-                headers: {'Accept': 'application/json'},
-                mode: 'cors'
-            });
+        // Make the request with improved headers
+        const response = await fetch(apiUrl, { 
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'Origin': 'http://experiencepoints.app'
+            },
+            mode: 'cors',
+            cache: 'no-cache'
+        });
             
-            if (!response.ok) {
-                console.log('Local API failed, falling back to production');
-                throw new Error('Local server not available');
-            }
-        } catch (err) {
-            console.log('Using production API instead due to error:', err.message);
-            apiUrl = 'https://experience-points-backend.onrender.com/api/templates';
-            response = await fetch(apiUrl, { 
-                headers: {'Accept': 'application/json'},
-                mode: 'cors'
-            });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
         
         console.log('API response received');
@@ -266,10 +258,22 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     
     // Check if template is selected
     if (!window.selectedTemplate) {
-        errorDiv.textContent = 'Please select a template to begin your journey!';
-        errorDiv.style.display = 'block';
-        return;
+        console.warn('No template selected, defaulting to fitness template');
+        // Default to fitness template if none selected (prevents registration failures)
+        window.selectedTemplate = 'fitness';
+        
+        // Inform the user but don't block registration
+        const warningDiv = document.createElement('div');
+        warningDiv.textContent = 'Using default fitness template';
+        warningDiv.style.color = 'orange';
+        errorDiv.parentNode.insertBefore(warningDiv, errorDiv);
+    } else {
+        console.log('Template selected:', window.selectedTemplate);
     }
+    
+    // Store the selected template in localStorage
+    localStorage.setItem('selected_template', window.selectedTemplate);
+    console.log('Template saved to localStorage:', window.selectedTemplate);
     
     const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
@@ -300,13 +304,16 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
         console.log('Registration payload:', JSON.stringify(payload));
         
         // Make API request
+        console.log('Sending registration request to:', 'https://experience-points-backend.onrender.com/api/register');
         const response = await fetch('https://experience-points-backend.onrender.com/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'Origin': 'http://experiencepoints.app'
             },
             mode: 'cors',
+            cache: 'no-cache',
             body: JSON.stringify(payload)
         });
         
@@ -336,6 +343,12 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
             // Save user data
             localStorage.setItem('token', data.token);
             localStorage.setItem('username', data.user.username);
+            
+            // Make sure template is saved to localStorage
+            if (window.selectedTemplate) {
+                localStorage.setItem('selected_template', window.selectedTemplate);
+                console.log('Saved template to localStorage before redirect:', window.selectedTemplate);
+            }
             
             // Redirect to main app
             console.log('Registration successful, redirecting...');

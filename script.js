@@ -23,7 +23,16 @@ let progressRadarChart = null;
 // Initialize the radar chart
 function initProgressChart() {
     const ctx = document.getElementById('progressChart');
-    if (!ctx) return;
+    if (!ctx) {
+        console.warn('Chart canvas element not found');
+        return;
+    }
+    
+    // Make sure Chart is defined
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not loaded. Please ensure Chart.js is included before using charts.');
+        return;
+    }
     
     // Chart.js configuration
     progressRadarChart = new Chart(ctx, {
@@ -104,7 +113,16 @@ function initProgressChart() {
 
 // Update the radar chart with current data
 function updateProgressChart() {
-    if (!progressRadarChart) return;
+    // Initialize chart if it doesn't exist
+    if (!progressRadarChart) {
+        initProgressChart();
+    }
+    
+    // If chart initialization failed or still doesn't exist, exit gracefully
+    if (!progressRadarChart) {
+        console.warn('Unable to update chart - chart not initialized');
+        return;
+    }
     
     // Combine skills and financial goals
     const allGoals = [...(window.skills || []), ...(window.financialGoals || [])];
@@ -291,6 +309,34 @@ async function loadGoals() {
         // Initialize or update arrays
         window.skills = Array.isArray(data.skills) ? data.skills : [];
         window.financialGoals = Array.isArray(data.financial) ? data.financial : [];
+        
+        console.log('Raw data loaded:', data);
+        
+        // If no skills or goals were loaded but user registered with a template, try to add template defaults
+        if ((!window.skills || window.skills.length === 0) && (!window.financialGoals || window.financialGoals.length === 0)) {
+            // Check localStorage for template info
+            const template = localStorage.getItem('selected_template');
+            console.log('No goals found, checking for template:', template);
+            
+            if (template === 'fitness' || !template) {
+                console.log('Adding fitness template defaults');
+                window.skills = [
+                    { name: 'Tennis', target: 15, current: 7, history: [] },
+                    { name: 'BJJ', target: 15, current: 1, history: [] },
+                    { name: 'Cycling', target: 10, current: 0, history: [] },
+                    { name: 'Skiing', target: 8, current: 2, history: [] },
+                    { name: 'Padel', target: 10, current: 2, history: [] },
+                    { name: 'Spanish', target: 15, current: 1, history: [] },
+                    { name: 'Pilates', target: 10, current: 0, history: [] },
+                    { name: 'Cooking', target: 10, current: 0, history: [] }
+                ];
+            } else if (template === 'finance') {
+                console.log('Adding finance template defaults');
+                window.financialGoals = [
+                    { name: 'Debt Repayment', target: 27000, current: 0, history: [] }
+                ];
+            }
+        }
         
         // Ensure history arrays exist
         window.skills.forEach(skill => {
@@ -961,8 +1007,17 @@ async function handleFormSubmit(event) {
         renderAll();
         
         // Explicitly update the radar chart
-        if (!progressRadarChart) {
-            initProgressChart();
+        try {
+            if (!progressRadarChart) {
+                console.log('Initializing radar chart...');
+                initProgressChart();
+            }
+            
+            // Always update the chart with the latest data
+            console.log('Updating radar chart with new data...');
+            updateProgressChart();
+        } catch (chartError) {
+            console.error('Error updating chart:', chartError);
         }
         updateProgressChart();
         
