@@ -274,11 +274,10 @@ function getTimelineStatus(item) {
     }
     
     // If no deadline, just show 'in progress' status
-    // Default dates are 2025-12-31 or anything in 2025
+    // Default dates are 2025-12-31
     const hasDeadline = item.deadline && 
                       item.deadline !== '2025-12-31' && 
-                      item.deadline !== null && 
-                      !item.deadline.startsWith('2025-');
+                      item.deadline !== null;
     if (!hasDeadline) {
         return { status: 'in-progress', color: 'var(--ff-crystal)' };
     }
@@ -330,11 +329,10 @@ function renderProgressBar(container, item, isFinancial = false) {
     const hasSufficientData = item.history && Array.isArray(item.history) && item.history.length >= 2;
     
     // Only show deadline if it's explicitly set by the user and not a default date
-    // Default dates are 2025-12-31 or anything in 2025
+    // Default dates are 2025-12-31
     const hasDeadline = item.deadline && 
                       item.deadline !== '2025-12-31' && 
-                      item.deadline !== null && 
-                      !item.deadline.startsWith('2025-');
+                      item.deadline !== null;
     
     div.innerHTML = `
         <div class="progress-label">
@@ -667,9 +665,27 @@ export async function handleFormSubmit(event) {
         
         // Update local state
         if (existingIndex >= 0) {
+            // Record value change in history if actual progress was made
+            if (oldValue !== current) {
+                // Make sure history array exists
+                if (!Array.isArray(list[existingIndex].history)) {
+                    list[existingIndex].history = [];
+                }
+                
+                // Add entry for this update
+                list[existingIndex].history.push({
+                    date: new Date().toISOString(),
+                    value: current
+                });
+                
+                // Print history to console for debugging
+                console.log(`Updated history for ${name}:`, list[existingIndex].history);
+            }
+            
             // Update existing goal
             list[existingIndex] = {
                 ...data,
+                // Keep the updated history
                 history: list[existingIndex].history || []
             };
             
