@@ -56,43 +56,81 @@ tabs.forEach(tab => {
 
 // Load and render templates
 async function loadTemplates() {
+    console.log('Loading templates...');
+    const templateGrid = document.querySelector('.template-grid');
+    
+    if (!templateGrid) {
+        console.error('ERROR: Template grid not found in DOM');
+        return;
+    }
+    
+    // Show loading indicator
+    templateGrid.innerHTML = '<div>Loading templates...</div>';
+    
     try {
-        const response = await fetch('https://experience-points-backend.onrender.com/api/templates');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        const templateGrid = document.querySelector('.template-grid');
+        console.log('Fetching templates from API...');
+        // Try local server first (for development), then fall back to production
+        let apiUrl = 'http://localhost:5001/api/templates';
+        let response;
         
-        if (!templateGrid) {
-            console.error('Template grid not found in DOM');
-            return;
+        try {
+            console.log('Trying local API first...');
+            response = await fetch(apiUrl, { 
+                headers: {'Accept': 'application/json'},
+                mode: 'cors'
+            });
+            
+            if (!response.ok) {
+                console.log('Local API failed, falling back to production');
+                throw new Error('Local server not available');
+            }
+        } catch (err) {
+            console.log('Using production API instead due to error:', err.message);
+            apiUrl = 'https://experience-points-backend.onrender.com/api/templates';
+            response = await fetch(apiUrl, { 
+                headers: {'Accept': 'application/json'},
+                mode: 'cors'
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
         }
+        
+        console.log('API response received');
+        const data = await response.json();
+        console.log('Template data:', data);
         
         // Clear existing templates
         templateGrid.innerHTML = '';
         
         // Check if we have templates
         if (!data || !Array.isArray(data.templates) || data.templates.length === 0) {
+            console.error('No templates found in API response');
             templateGrid.innerHTML = '<div class="error-message">No templates available. Please try again later.</div>';
             return;
         }
         
+        console.log(`Found ${data.templates.length} templates`);
+        
         // Render each template
         data.templates.forEach(template => {
+            console.log('Processing template:', template.id, template.name);
             const card = document.createElement('div');
             card.className = 'template-card';
             card.dataset.template = template.id;
             
             let skillsList = '';
             if (template.skills && Array.isArray(template.skills) && template.skills.length > 0) {
+                console.log(`Template ${template.id} has ${template.skills.length} skills`);
                 const skillsData = template.skills.map(skill => {
                     if (typeof skill === 'string') {
                         return { name: skill, target: 10 };
                     }
                     return {
                         name: skill.name || '',
-                        target: skill.target || 10
+                        target: skill.target || 10,
+                        current: skill.current || 0
                     };
                 }).filter(skill => skill.name);
                 
@@ -109,13 +147,15 @@ async function loadTemplates() {
                     `;
                 }
             } else if (template.financial && Array.isArray(template.financial) && template.financial.length > 0) {
+                console.log(`Template ${template.id} has ${template.financial.length} financial goals`);
                 const financialData = template.financial.map(goal => {
                     if (typeof goal === 'string') {
                         return { name: goal, target: 1000 };
                     }
                     return {
                         name: goal.name || '',
-                        target: goal.target || 1000
+                        target: goal.target || 1000,
+                        current: goal.current || 0
                     };
                 }).filter(goal => goal.name);
                 
@@ -131,6 +171,8 @@ async function loadTemplates() {
                         </div>
                     `;
                 }
+            } else {
+                console.log(`Template ${template.id} has no skills or financial goals`);
             }
             
             card.innerHTML = `
@@ -138,9 +180,11 @@ async function loadTemplates() {
                 ${template.description ? `<p class="template-description">${template.description}</p>` : ''}
                 ${skillsList}
             `;
+            console.log(`Rendered template card for ${template.name}`);
             
             // Add click handler
             card.addEventListener('click', () => {
+                console.log(`Selected template: ${template.id}`);
                 document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
                 selectedTemplate = template.id;
@@ -151,6 +195,7 @@ async function loadTemplates() {
             
             templateGrid.appendChild(card);
         });
+        console.log('All templates rendered successfully');
     } catch (error) {
         console.error('Failed to load templates:', error);
         const templateGrid = document.querySelector('.template-grid');
