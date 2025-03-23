@@ -312,7 +312,9 @@ function getTimelineStatus(item) {
 
 // Render progress bars with FF-style
 function renderProgressBar(container, item, isFinancial = false) {
+    // Original calculation with debug logging
     const percentage = (item.current / item.target) * 100;
+    console.log(`Progress for ${item.name}: ${item.current}/${item.target} = ${percentage}%`);
     const mastered = isMastered(item.current, item.target);
     
     // Get previous progress if element exists
