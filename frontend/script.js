@@ -286,23 +286,25 @@ function getTimelineStatus(item) {
     }
     
     // If no deadline, just show 'in progress' status
-    // Only show deadline if it exists, is in the future, and was explicitly added by the user
-    // For new templates, deadline will be null or empty
-    const hasValidDeadline = item.deadline && item.deadline !== null && item.deadline !== '';
+    // Only show deadlines that are explicitly added by the user and not default ones
+    // When a new user registers with a template, all deadlines start as '2025-12-31'
+    // We should never display this deadline - it's just a placeholder
     
-    // When users register with a template, no deadline is set - we never want to show default deadlines
-    // We only want to show deadlines that users explicitly set
-    const isDefaultDeadline = !hasValidDeadline || item.deadline === '2025-12-31';
+    // First check if the deadline exists and isn't the default placeholder
+    const hasValidDeadline = item.deadline && 
+                           item.deadline !== null && 
+                           item.deadline !== '' &&
+                           item.deadline !== '2025-12-31';
     
-    // Check if deadline is in the future
+    // Only check for future dates if we have a valid non-default deadline
     let isInFuture = false;
     if (hasValidDeadline) {
         const deadlineDate = new Date(item.deadline);
         isInFuture = deadlineDate > new Date();
     }
     
-    // Show deadline only if user explicitly set it and it's in the future
-    const hasDeadline = hasValidDeadline && !isDefaultDeadline && isInFuture;
+    // Only show deadline if it's valid, not default, and in the future
+    const hasDeadline = hasValidDeadline && isInFuture;
     if (!hasDeadline) {
         return { status: 'in-progress', color: 'var(--ff-crystal)' };
     }
@@ -347,29 +349,44 @@ function renderProgressBar(container, item, isFinancial = false) {
     // Parse previous percentage for milestone detection
     const prevPercentage = parseFloat(previousPercentage) || 0;
 
-    // Check if we have sufficient data for prediction and status - just need 2 history points
+    // Check if we have sufficient data for prediction and status
     // We'll consider a goal as having sufficient data if:
-    // 1. It has a history array AND
-    // 2. The history array has at least 2 entries
-    const hasSufficientData = item.history && Array.isArray(item.history) && item.history.length >= 2;
+    // 1. It has a history array with at least 2 entries AND
+    // 2. The entries are at least 1 day apart AND
+    // 3. There has been some progress made
+    const hasHistory = item.history && Array.isArray(item.history) && item.history.length >= 2;
+    let hasSufficientData = false;
     
-    // Only show deadline if it exists, is in the future, and was explicitly added by the user
-    // For new templates, deadline will be null or empty
-    const hasValidDeadline = item.deadline && item.deadline !== null && item.deadline !== '';
+    if (hasHistory) {
+        // Calculate time difference between first and last entry
+        const firstEntry = item.history[0];
+        const lastEntry = item.history[item.history.length - 1];
+        const daysDiff = (new Date(lastEntry.date) - new Date(firstEntry.date)) / (1000 * 60 * 60 * 24);
+        const valueChange = lastEntry.value - firstEntry.value;
+        
+        // Only consider sufficient if at least 1 day apart and has progress
+        hasSufficientData = daysDiff >= 1 && valueChange > 0;
+    }
     
-    // When users register with a template, no deadline is set - we never want to show default deadlines
-    // We only want to show deadlines that users explicitly set
-    const isDefaultDeadline = !hasValidDeadline || item.deadline === '2025-12-31';
+    // Only show deadlines that are explicitly added by the user and not default ones
+    // When a new user registers with a template, all deadlines start as '2025-12-31'
+    // We should never display this deadline - it's just a placeholder
     
-    // Check if deadline is in the future
+    // First check if the deadline exists and isn't the default placeholder
+    const hasValidDeadline = item.deadline && 
+                           item.deadline !== null && 
+                           item.deadline !== '' &&
+                           item.deadline !== '2025-12-31';
+    
+    // Only check for future dates if we have a valid non-default deadline
     let isInFuture = false;
     if (hasValidDeadline) {
         const deadlineDate = new Date(item.deadline);
         isInFuture = deadlineDate > new Date();
     }
     
-    // Show deadline only if user explicitly set it and it's in the future
-    const hasDeadline = hasValidDeadline && !isDefaultDeadline && isInFuture;
+    // Only show deadline if it's valid, not default, and in the future
+    const hasDeadline = hasValidDeadline && isInFuture;
     
     div.innerHTML = `
         <div class="progress-label">
