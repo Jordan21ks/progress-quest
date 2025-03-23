@@ -286,36 +286,13 @@ function getTimelineStatus(item) {
     }
     
     // If no deadline, just show 'in progress' status
-    // Simpler deadline validation to ensure user-added deadlines always show
-    // Add debugging to see what's happening with deadlines
-    console.log('Deadline for ' + item.name + ':', item.deadline);
+    // SIMPLE DEADLINE LOGIC: Always show ANY deadline
+    // A deadline is valid if it simply exists and is not empty
+    const hasDeadline = item.deadline && 
+                       item.deadline !== null && 
+                       item.deadline !== '';
     
-    // A deadline is valid if it exists and isn't the default value
-    const hasValidDeadline = item.deadline && 
-                           item.deadline !== null && 
-                           item.deadline !== '' && 
-                           item.deadline !== '2025-12-31';
-    
-    console.log('Has valid deadline:', hasValidDeadline);
-    
-    // FIXED: We will now show ALL deadlines that are not the default placeholder
-    // Users may want to set deadlines in the past for reference
-    let isInFuture = true; // Default to true to show all non-default deadlines
-    
-    if (hasValidDeadline) {
-        const deadlineDate = new Date(item.deadline);
-        const now = new Date();
-        // We still calculate this for logging but don't use it to hide deadlines
-        const actuallyInFuture = deadlineDate > now;
-        console.log('Deadline date:', deadlineDate);
-        console.log('Current date:', now);
-        console.log('Is in future:', actuallyInFuture);
-    }
-    
-    // Now we only require that the deadline is valid (not the default)
-    // We're no longer filtering by future/past
-    const hasDeadline = hasValidDeadline;
-    console.log('Will show deadline:', hasDeadline);
+    console.log('Deadline for ' + item.name + ':', item.deadline, 'Will show:', hasDeadline);
     if (!hasDeadline) {
         return { status: 'in-progress', color: 'var(--ff-crystal)' };
     }
@@ -386,36 +363,13 @@ function renderProgressBar(container, item, isFinancial = false) {
         }
     }
     
-    // Simpler deadline validation to ensure user-added deadlines always show
-    // Add debugging to see what's happening with deadlines
-    console.log('Deadline for ' + item.name + ':', item.deadline);
+    // SIMPLE DEADLINE LOGIC: Always show ANY deadline
+    // A deadline is valid if it simply exists and is not empty
+    const hasDeadline = item.deadline && 
+                       item.deadline !== null && 
+                       item.deadline !== '';
     
-    // A deadline is valid if it exists and isn't the default value
-    const hasValidDeadline = item.deadline && 
-                           item.deadline !== null && 
-                           item.deadline !== '' && 
-                           item.deadline !== '2025-12-31';
-    
-    console.log('Has valid deadline:', hasValidDeadline);
-    
-    // FIXED: We will now show ALL deadlines that are not the default placeholder
-    // Users may want to set deadlines in the past for reference
-    let isInFuture = true; // Default to true to show all non-default deadlines
-    
-    if (hasValidDeadline) {
-        const deadlineDate = new Date(item.deadline);
-        const now = new Date();
-        // We still calculate this for logging but don't use it to hide deadlines
-        const actuallyInFuture = deadlineDate > now;
-        console.log('Deadline date:', deadlineDate);
-        console.log('Current date:', now);
-        console.log('Is in future:', actuallyInFuture);
-    }
-    
-    // Now we only require that the deadline is valid (not the default)
-    // We're no longer filtering by future/past
-    const hasDeadline = hasValidDeadline;
-    console.log('Will show deadline:', hasDeadline);
+    console.log('Deadline for ' + item.name + ':', item.deadline, 'Will show:', hasDeadline);
     
     // Only include prediction and status if we have a valid prediction - not just valid history entries
     const hasPrediction = prediction !== null && prediction !== undefined;
