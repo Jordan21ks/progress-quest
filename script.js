@@ -505,17 +505,45 @@ export async function deleteGoal(goalId, type) {
     
     try {
         console.log(`Deleting goal with ID: ${goalId}`);
-        const response = await fetch(`https://experience-points-backend.onrender.com/api/goals/${goalId}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
         
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.error || 'Failed to delete item');
+        // Try local server first, then fall back to production
+        let apiUrl = `http://localhost:5001/api/goals/${goalId}`;
+        let response;
+        
+        try {
+            console.log('Attempting to delete using local development server...');
+            response = await fetch(apiUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Accept': 'application/json'
+                },
+                mode: 'cors'
+            });
+            
+            // If local server gives an error, fall back to production
+            if (!response.ok) {
+                console.log(`Local server returned error: ${response.status}. Falling back to production.`);
+                throw new Error('Local server error');
+            }
+        } catch (err) {
+            console.log('Using production API instead:', err.message);
+            apiUrl = `https://experience-points-backend.onrender.com/api/goals/${goalId}`;
+            response = await fetch(apiUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Accept': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to delete item');
+            }
         }
+        
+        // If we got here, the request was successful with either local or production server
         
         // Remove from local arrays
         const list = type === 'skill' ? window.skills : window.financialGoals;
