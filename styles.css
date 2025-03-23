@@ -27,6 +27,8 @@ body {
   background-position: 0 0, 30px 30px;
   animation: bgScroll 60s linear infinite;
   -webkit-tap-highlight-color: transparent;
+  display: flex;
+  flex-direction: column;
 }
 
 .container {
@@ -38,6 +40,7 @@ body {
   border-radius: 10px;
   box-shadow: 0 0 20px rgba(74, 144, 226, 0.2);
   box-sizing: border-box;
+  flex: 1;
 }
 
 .header {
@@ -701,4 +704,114 @@ h1 {
     position: absolute;
     left: 0;
     opacity: 0.8;
+}
+
+/* Footer styles for business legitimacy */
+.footer {
+    margin-top: 30px;
+    width: 100%;
+    background: var(--ff-menu-bg);
+    border-top: 2px solid var(--ff-border);
+    border-radius: 10px;
+    padding: 15px 0;
+    box-shadow: 0 0 20px rgba(74, 144, 226, 0.2);
+    font-size: 0.6em;
+    line-height: 1.8;
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0 15px;
+}
+
+.footer-section {
+    margin: 5px 0;
+}
+
+.footer-links a {
+    color: var(--ff-crystal);
+    text-decoration: none;
+    transition: color 0.2s;
+    padding: 0 10px;
+}
+
+.footer-links a:hover {
+    color: var(--ff-gold);
+    text-decoration: underline;
+}
+
+/* Legal pages styles */
+.legal-page {
+    max-width: 1200px;
+    margin: 20px auto;
+    padding: 20px;
+    background: var(--ff-menu-bg);
+    border: 2px solid var(--ff-border);
+    border-radius: 10px;
+    box-shadow: 0 0 20px rgba(74, 144, 226, 0.2);
+}
+
+.legal-page h1 {
+    color: var(--ff-gold);
+    border-bottom: 2px solid var(--ff-border);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+    font-size: 1.5em;
+}
+
+.legal-page h2 {
+    color: var(--ff-crystal);
+    margin-top: 25px;
+    font-size: 1.2em;
+}
+
+.legal-page p {
+    font-size: 0.7em;
+    line-height: 1.8;
+}
+
+.legal-page ul {
+    font-size: 0.7em;
+    line-height: 1.8;
+    padding-left: 20px;
+}
+
+.legal-page section {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid rgba(74, 74, 127, 0.5);
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: var(--ff-menu-bg);
+    border-bottom: 2px solid var(--ff-border);
+    margin-bottom: 20px;
+}
+
+header .logo h1 {
+    margin: 0;
+    font-size: 1.2em;
+    color: var(--ff-gold);
+}
+
+header nav a {
+    color: var(--ff-crystal);
+    text-decoration: none;
+    margin-left: 15px;
+    font-size: 0.7em;
+    transition: color 0.2s;
+}
+
+header nav a:hover,
+header nav a.active {
+    color: var(--ff-gold);
 }
