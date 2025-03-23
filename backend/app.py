@@ -71,12 +71,6 @@ class User(db.Model):
     username = db.Column(db.String(80), unique=True, nullable=False)
     password_hash = db.Column(db.String(120), nullable=False)
     goals = db.relationship('Goal', backref='user', lazy=True)
-    share_id = db.Column(db.String(36), unique=True, nullable=True)  # UUID for public profile sharing
-    profile_visibility = db.Column(db.String(10), default='private')  # private, friends, public
-    friends = db.relationship('Friendship', 
-                             foreign_keys='Friendship.user_id',
-                             backref='user', 
-                             lazy=True)
 
 class Goal(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -88,30 +82,12 @@ class Goal(db.Model):
     type = db.Column(db.String(20), nullable=False)  # 'skill' or 'financial'
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     history = db.relationship('History', backref='goal', lazy=True)
-    visibility = db.Column(db.String(10), default='inherit')  # inherit (from user), private, public
 
 class History(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     date = db.Column(db.DateTime, nullable=False)
     value = db.Column(db.Float, nullable=False)
     goal_id = db.Column(db.Integer, db.ForeignKey('goal.id'), nullable=False)
-
-class Friendship(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    friend_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    status = db.Column(db.String(20), default='pending')  # pending, accepted, rejected
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-class Share(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    share_uuid = db.Column(db.String(36), unique=True, nullable=False)  # Unique link for sharing
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    expires_at = db.Column(db.DateTime, nullable=True)  # Optional expiration date
-    is_active = db.Column(db.Boolean, default=True)
-    goals_shared = db.Column(db.Text, nullable=True)  # JSON list of goal IDs or null for all
 
 # Templates
 TEMPLATES = {
@@ -193,22 +169,8 @@ def goal_to_dict(goal):
         'level': goal.level,
         'deadline': goal.deadline.isoformat() if goal.deadline else None,
         'type': goal.type,
-        'visibility': goal.visibility,
         'history': [{'date': h.date.isoformat(), 'value': h.value} for h in goal.history]
     }
-    
-def user_to_dict(user, include_private=False):
-    """Convert a user to a dictionary, with option to include private fields"""
-    data = {
-        'id': user.id,
-        'username': user.username,
-        'profile_visibility': user.profile_visibility,
-    }
-    
-    if include_private:
-        data['share_id'] = user.share_id
-        
-    return data
 
 @app.route('/api/register', methods=['POST'])
 def register():
@@ -473,291 +435,6 @@ def get_fact(current_user):
     except Exception as e:
         print('Error fetching fact:', e)
         return jsonify({'error': 'Failed to fetch fact'}), 500
-
-# Sharing endpoints
-@app.route('/api/profile/share', methods=['POST'])
-@token_required
-def create_share_link(current_user):
-    """Create a new share link for the user's profile or specific goals"""
-    import uuid
-    import json
-    
-    data = request.get_json()
-    goal_ids = data.get('goal_ids', None)  # None means share entire profile
-    expiry_days = data.get('expiry_days', None)  # None means no expiration
-    
-    # Create a new share link
-    share_uuid = str(uuid.uuid4())
-    
-    # Set expiration date if specified
-    expires_at = None
-    if expiry_days is not None:
-        expires_at = datetime.utcnow() + timedelta(days=expiry_days)
-    
-    # Store goal IDs as JSON if specified
-    goals_shared = None
-    if goal_ids is not None:
-        goals_shared = json.dumps(goal_ids)
-    
-    share = Share(
-        user_id=current_user.id,
-        share_uuid=share_uuid,
-        expires_at=expires_at,
-        goals_shared=goals_shared
-    )
-    
-    db.session.add(share)
-    db.session.commit()
-    
-    # Construct the shareable URL
-    base_url = request.host_url.rstrip('/')
-    share_url = f"{base_url}/share/{share_uuid}"
-    
-    return jsonify({
-        'share_id': share_uuid,
-        'share_url': share_url,
-        'expires_at': expires_at.isoformat() if expires_at else None
-    })
-
-@app.route('/api/profile/permanent-link', methods=['POST'])
-@token_required
-def create_permanent_profile_link(current_user):
-    """Create or update the user's permanent profile link"""
-    import uuid
-    
-    # Check if user already has a permanent share ID
-    if not current_user.share_id:
-        current_user.share_id = str(uuid.uuid4())
-        db.session.commit()
-    
-    # Construct the permanent profile URL
-    base_url = request.host_url.rstrip('/')
-    profile_url = f"{base_url}/profile/{current_user.share_id}"
-    
-    return jsonify({
-        'profile_id': current_user.share_id,
-        'profile_url': profile_url
-    })
-
-@app.route('/api/profile/visibility', methods=['POST'])
-@token_required
-def update_profile_visibility(current_user):
-    """Update the visibility of the user's profile"""
-    data = request.get_json()
-    visibility = data.get('visibility')
-    
-    if visibility not in ['private', 'friends', 'public']:
-        return jsonify({'error': 'Invalid visibility setting'}), 400
-    
-    current_user.profile_visibility = visibility
-    db.session.commit()
-    
-    return jsonify({
-        'profile_visibility': current_user.profile_visibility
-    })
-
-@app.route('/api/goals/visibility', methods=['POST'])
-@token_required
-def update_goal_visibility(current_user):
-    """Update the visibility of a specific goal"""
-    data = request.get_json()
-    goal_id = data.get('goal_id')
-    visibility = data.get('visibility')
-    
-    if visibility not in ['inherit', 'private', 'public']:
-        return jsonify({'error': 'Invalid visibility setting'}), 400
-    
-    goal = Goal.query.filter_by(id=goal_id, user_id=current_user.id).first()
-    if not goal:
-        return jsonify({'error': 'Goal not found'}), 404
-    
-    goal.visibility = visibility
-    db.session.commit()
-    
-    return jsonify(goal_to_dict(goal))
-
-@app.route('/api/share/<share_uuid>', methods=['GET'])
-def view_shared_content(share_uuid):
-    """View shared content using a share link"""
-    import json
-    
-    # Find the share link
-    share = Share.query.filter_by(share_uuid=share_uuid, is_active=True).first()
-    if not share:
-        return jsonify({'error': 'Share link not found or inactive'}), 404
-    
-    # Check if the share link has expired
-    if share.expires_at and share.expires_at < datetime.utcnow():
-        return jsonify({'error': 'Share link has expired'}), 410
-    
-    # Get the user who created the share link
-    user = User.query.get(share.user_id)
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    # Determine which goals to include
-    if share.goals_shared:
-        goal_ids = json.loads(share.goals_shared)
-        goals = Goal.query.filter(Goal.id.in_(goal_ids), Goal.user_id == user.id).all()
-    else:
-        # Share all goals
-        goals = Goal.query.filter_by(user_id=user.id).all()
-    
-    # Convert to response format
-    user_data = user_to_dict(user, include_private=False)
-    goals_data = [goal_to_dict(goal) for goal in goals]
-    
-    return jsonify({
-        'user': user_data,
-        'goals': goals_data,
-        'shared_at': share.created_at.isoformat(),
-        'expires_at': share.expires_at.isoformat() if share.expires_at else None
-    })
-
-@app.route('/api/profile/<profile_id>', methods=['GET'])
-def view_public_profile(profile_id):
-    """View a user's public profile using their permanent profile ID"""
-    # Find the user by their share ID
-    user = User.query.filter_by(share_id=profile_id).first()
-    if not user:
-        return jsonify({'error': 'Profile not found'}), 404
-    
-    # Check if the profile is public
-    if user.profile_visibility != 'public':
-        return jsonify({'error': 'This profile is not public'}), 403
-    
-    # Get publicly visible goals
-    goals = Goal.query.filter_by(user_id=user.id).all()
-    visible_goals = []
-    
-    for goal in goals:
-        # Include goals that are explicitly public or inherit from a public profile
-        if goal.visibility == 'public' or (goal.visibility == 'inherit' and user.profile_visibility == 'public'):
-            visible_goals.append(goal)
-    
-    # Convert to response format
-    user_data = user_to_dict(user, include_private=False)
-    goals_data = [goal_to_dict(goal) for goal in visible_goals]
-    
-    return jsonify({
-        'user': user_data,
-        'goals': goals_data
-    })
-
-@app.route('/api/friends', methods=['GET'])
-@token_required
-def get_friends(current_user):
-    """Get the current user's friends list"""
-    # Get accepted friendships where the current user is either the user or the friend
-    friendships = Friendship.query.filter(
-        ((Friendship.user_id == current_user.id) | (Friendship.friend_id == current_user.id)),
-        Friendship.status == 'accepted'
-    ).all()
-    
-    friends = []
-    for friendship in friendships:
-        friend_id = friendship.friend_id if friendship.user_id == current_user.id else friendship.user_id
-        friend = User.query.get(friend_id)
-        if friend:
-            friends.append(user_to_dict(friend))
-    
-    return jsonify({
-        'friends': friends
-    })
-
-@app.route('/api/friends/requests', methods=['GET'])
-@token_required
-def get_friend_requests(current_user):
-    """Get pending friend requests for the current user"""
-    # Get pending friendships where the current user is the friend (receiving requests)
-    requests = Friendship.query.filter_by(friend_id=current_user.id, status='pending').all()
-    
-    request_list = []
-    for req in requests:
-        requester = User.query.get(req.user_id)
-        if requester:
-            request_data = user_to_dict(requester)
-            request_data['request_id'] = req.id
-            request_data['created_at'] = req.created_at.isoformat()
-            request_list.append(request_data)
-    
-    return jsonify({
-        'requests': request_list
-    })
-
-@app.route('/api/friends/add', methods=['POST'])
-@token_required
-def add_friend(current_user):
-    """Send a friend request to another user"""
-    data = request.get_json()
-    friend_username = data.get('username')
-    
-    if not friend_username:
-        return jsonify({'error': 'Username is required'}), 400
-    
-    # Find the user to add as a friend
-    friend = User.query.filter_by(username=friend_username).first()
-    if not friend:
-        return jsonify({'error': 'User not found'}), 404
-    
-    # Can't add yourself as a friend
-    if friend.id == current_user.id:
-        return jsonify({'error': 'Cannot add yourself as a friend'}), 400
-    
-    # Check if a friendship already exists
-    existing = Friendship.query.filter(
-        ((Friendship.user_id == current_user.id) & (Friendship.friend_id == friend.id)) |
-        ((Friendship.user_id == friend.id) & (Friendship.friend_id == current_user.id))
-    ).first()
-    
-    if existing:
-        if existing.status == 'accepted':
-            return jsonify({'error': 'Already friends'}), 400
-        elif existing.status == 'pending':
-            return jsonify({'error': 'Friend request already pending'}), 400
-    
-    # Create a new friend request
-    friendship = Friendship(
-        user_id=current_user.id,
-        friend_id=friend.id,
-        status='pending'
-    )
-    
-    db.session.add(friendship)
-    db.session.commit()
-    
-    return jsonify({
-        'message': 'Friend request sent',
-        'request_id': friendship.id
-    })
-
-@app.route('/api/friends/respond', methods=['POST'])
-@token_required
-def respond_to_friend_request(current_user):
-    """Accept or reject a friend request"""
-    data = request.get_json()
-    request_id = data.get('request_id')
-    response = data.get('response')  # 'accept' or 'reject'
-    
-    if not request_id or not response:
-        return jsonify({'error': 'Request ID and response are required'}), 400
-    
-    if response not in ['accept', 'reject']:
-        return jsonify({'error': 'Invalid response'}), 400
-    
-    # Find the friend request
-    request = Friendship.query.filter_by(id=request_id, friend_id=current_user.id, status='pending').first()
-    if not request:
-        return jsonify({'error': 'Friend request not found'}), 404
-    
-    if response == 'accept':
-        request.status = 'accepted'
-        db.session.commit()
-        return jsonify({'message': 'Friend request accepted'})
-    else:
-        request.status = 'rejected'
-        db.session.commit()
-        return jsonify({'message': 'Friend request rejected'})
 
 if __name__ == '__main__':
     with app.app_context():

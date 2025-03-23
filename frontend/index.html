@@ -14,8 +14,6 @@
             <h1>⚔️ Experience Points ⚔️</h1>
             <div class="user-controls">
                 <span class="user-info"></span>
-                <button id="shareProfileBtn" class="btn share-btn">Share Profile</button>
-                <button id="friendsBtn" class="btn friends-btn">Friends</button>
                 <button id="logoutBtn" class="btn">Logout</button>
             </div>
         </div>
@@ -66,108 +64,6 @@
         </div>
     </div>
 
-        <!-- Share Modal -->
-    <div class="modal" id="shareModal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="shareModalTitle">Share Your Progress</h2>
-            </div>
-            <div class="share-options">
-                <div class="share-section">
-                    <h3>Profile Visibility</h3>
-                    <select id="profile-visibility">
-                        <option value="private">Private (Only Me)</option>
-                        <option value="friends">Friends Only</option>
-                        <option value="public">Public (Anyone)</option>
-                    </select>
-                </div>
-                
-                <div class="share-section">
-                    <h3>Create Share Link</h3>
-                    <div class="share-link-options">
-                        <div class="form-group">
-                            <label for="share-expiry">Expires After:</label>
-                            <select id="share-expiry">
-                                <option value="">Never</option>
-                                <option value="1">1 Day</option>
-                                <option value="7">7 Days</option>
-                                <option value="30">30 Days</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="share-type">Share:</label>
-                            <select id="share-type">
-                                <option value="all">All Skills & Goals</option>
-                                <option value="skills">Skills Only</option>
-                                <option value="financial">Financial Goals Only</option>
-                                <option value="selected">Selected Items</option>
-                            </select>
-                        </div>
-                        <div id="share-selection" style="display: none;">
-                            <h4>Select Items to Share</h4>
-                            <div id="share-items-container"></div>
-                        </div>
-                        <button id="generate-share-link" class="btn">Generate Link</button>
-                    </div>
-                    <div id="share-link-container" style="display: none;">
-                        <p>Your share link:</p>
-                        <div class="share-link-box">
-                            <input type="text" id="share-link" readonly>
-                            <button id="copy-share-link" class="btn">Copy</button>
-                        </div>
-                        <div class="social-share-buttons">
-                            <button id="share-twitter" class="social-btn twitter">Twitter</button>
-                            <button id="share-facebook" class="social-btn facebook">Facebook</button>
-                            <button id="share-email" class="social-btn email">Email</button>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="button-group">
-                    <button type="button" class="btn" id="closeShareBtn">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Friends Modal -->
-    <div class="modal" id="friendsModal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Friends</h2>
-            </div>
-            <div class="friends-tabs">
-                <button class="tab-btn active" data-tab="my-friends">My Friends</button>
-                <button class="tab-btn" data-tab="requests">Friend Requests</button>
-                <button class="tab-btn" data-tab="add-friend">Add Friend</button>
-            </div>
-            <div class="tab-content">
-                <div id="my-friends" class="tab-pane active">
-                    <div id="friends-list">
-                        <!-- Friends will be listed here -->
-                    </div>
-                </div>
-                <div id="requests" class="tab-pane">
-                    <div id="friend-requests">
-                        <!-- Friend requests will be listed here -->
-                    </div>
-                </div>
-                <div id="add-friend" class="tab-pane">
-                    <div class="add-friend-form">
-                        <div class="form-group">
-                            <label for="friend-username">Username:</label>
-                            <input type="text" id="friend-username" placeholder="Enter username">
-                        </div>
-                        <button id="send-friend-request" class="btn">Send Friend Request</button>
-                    </div>
-                </div>
-            </div>
-            <div class="button-group">
-                <button type="button" class="btn" id="closeFriendsBtn">Close</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Load scripts in correct order -->
     <script type="module">
         import { handleFormSubmit, hideModal, deleteGoal } from './script.js';
@@ -197,40 +93,6 @@
             if (goalId && goalType) {
                 deleteGoal(goalId, goalType);
             }
-        });
-        
-        // Share profile button
-        document.getElementById('shareProfileBtn').addEventListener('click', () => {
-            document.getElementById('shareModal').style.display = 'flex';
-        });
-        
-        // Close share modal
-        document.getElementById('closeShareBtn').addEventListener('click', () => {
-            document.getElementById('shareModal').style.display = 'none';
-        });
-        
-        // Friends button
-        document.getElementById('friendsBtn').addEventListener('click', () => {
-            document.getElementById('friendsModal').style.display = 'flex';
-        });
-        
-        // Close friends modal
-        document.getElementById('closeFriendsBtn').addEventListener('click', () => {
-            document.getElementById('friendsModal').style.display = 'none';
-        });
-        
-        // Friends tabs functionality
-        const tabButtons = document.querySelectorAll('.tab-btn');
-        tabButtons.forEach(button => {
-            button.addEventListener('click', () => {
-                // Remove active class from all buttons and panes
-                tabButtons.forEach(btn => btn.classList.remove('active'));
-                document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
-                
-                // Add active class to clicked button and corresponding pane
-                button.classList.add('active');
-                document.getElementById(button.dataset.tab).classList.add('active');
-            });
         });
     </script>
     <script src="script.js" type="module"></script>
