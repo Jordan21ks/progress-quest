@@ -221,20 +221,32 @@ function showLevelUpMessage(item) {
 // Calculate time remaining and prediction
 function calculatePrediction(item) {
     const history = item.history;
-    if (history.length < 2) return null;
+    
+    // Need at least 2 history entries
+    if (!history || history.length < 2) return null;
 
     // Calculate daily rate based on history
     const firstEntry = history[0];
     const lastEntry = history[history.length - 1];
+    
+    // Calculate days between first and last entry
     const daysDiff = (new Date(lastEntry.date) - new Date(firstEntry.date)) / (1000 * 60 * 60 * 24);
-    if (daysDiff === 0) return null;
+    
+    // Need at least 1 day difference for meaningful prediction
+    if (daysDiff < 1) return null;
+    
+    // Also need value change for meaningful prediction
+    const valueChange = lastEntry.value - firstEntry.value;
+    if (valueChange <= 0) return null;
 
-    const progressRate = (lastEntry.value - firstEntry.value) / daysDiff;
-    if (progressRate <= 0) return null;
-
-    // Calculate days needed
+    // Calculate progress rate (value change per day)
+    const progressRate = valueChange / daysDiff;
+    
+    // Calculate remaining days needed
     const remaining = item.target - item.current;
     const daysNeeded = remaining / progressRate;
+    
+    // Calculate predicted completion date
     const predictedDate = new Date();
     predictedDate.setDate(predictedDate.getDate() + daysNeeded);
 
@@ -274,14 +286,23 @@ function getTimelineStatus(item) {
     }
     
     // If no deadline, just show 'in progress' status
-    // Only show deadline if it exists and is in the future
-    // We want to show ANY future date the user sets, including 2025-12-31
-    const hasValidDeadline = item.deadline && item.deadline !== null;
-    const deadlineDate = new Date(item.deadline);
-    const isInFuture = deadlineDate > new Date();
+    // Only show deadline if it exists, is in the future, and was explicitly added by the user
+    // For new templates, deadline will be null or empty
+    const hasValidDeadline = item.deadline && item.deadline !== null && item.deadline !== '';
     
-    // Show deadline if it's in the future
-    const hasDeadline = hasValidDeadline && isInFuture;
+    // When users register with a template, no deadline is set - we never want to show default deadlines
+    // We only want to show deadlines that users explicitly set
+    const isDefaultDeadline = !hasValidDeadline || item.deadline === '2025-12-31';
+    
+    // Check if deadline is in the future
+    let isInFuture = false;
+    if (hasValidDeadline) {
+        const deadlineDate = new Date(item.deadline);
+        isInFuture = deadlineDate > new Date();
+    }
+    
+    // Show deadline only if user explicitly set it and it's in the future
+    const hasDeadline = hasValidDeadline && !isDefaultDeadline && isInFuture;
     if (!hasDeadline) {
         return { status: 'in-progress', color: 'var(--ff-crystal)' };
     }
@@ -332,14 +353,23 @@ function renderProgressBar(container, item, isFinancial = false) {
     // 2. The history array has at least 2 entries
     const hasSufficientData = item.history && Array.isArray(item.history) && item.history.length >= 2;
     
-    // Only show deadline if it exists and is in the future
-    // We want to show ANY future date the user sets, including 2025-12-31
-    const hasValidDeadline = item.deadline && item.deadline !== null;
-    const deadlineDate = new Date(item.deadline);
-    const isInFuture = deadlineDate > new Date();
+    // Only show deadline if it exists, is in the future, and was explicitly added by the user
+    // For new templates, deadline will be null or empty
+    const hasValidDeadline = item.deadline && item.deadline !== null && item.deadline !== '';
     
-    // Show deadline if it's in the future
-    const hasDeadline = hasValidDeadline && isInFuture;
+    // When users register with a template, no deadline is set - we never want to show default deadlines
+    // We only want to show deadlines that users explicitly set
+    const isDefaultDeadline = !hasValidDeadline || item.deadline === '2025-12-31';
+    
+    // Check if deadline is in the future
+    let isInFuture = false;
+    if (hasValidDeadline) {
+        const deadlineDate = new Date(item.deadline);
+        isInFuture = deadlineDate > new Date();
+    }
+    
+    // Show deadline only if user explicitly set it and it's in the future
+    const hasDeadline = hasValidDeadline && !isDefaultDeadline && isInFuture;
     
     div.innerHTML = `
         <div class="progress-label">
@@ -761,19 +791,8 @@ export async function handleFormSubmit(event) {
                 ]
             });
             
-            // Add a second history entry with a small difference to trigger status display
-            setTimeout(() => {
-                const index = list.findIndex(item => item.name === name);
-                if (index >= 0) {
-                    // Add second history point 1 second later
-                    const secondEntry = { 
-                        date: new Date(new Date(now).getTime() + 1000).toISOString(), 
-                        value: current 
-                    };
-                    list[index].history.push(secondEntry);
-                    renderAll();
-                }
-            }, 500);
+            // Don't add an automatic second entry - we want at least 1 day
+            // difference before we start showing predictions
         }
         
         // Update display and close modal
