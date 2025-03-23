@@ -96,13 +96,25 @@ TEMPLATES = {
         'description': 'Add your own skills + goals',
         'skills': []
     },
+    'sales_expert': {
+        'name': 'The Sales Expert',
+        'skills': [
+            {'name': 'Outbound', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Discovery', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Storytelling', 'current': 9, 'target': 10, 'level': 1},
+            {'name': 'Consulting', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Multithreading', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Followups', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Project Management', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Negotiation', 'current': 1, 'target': 10, 'level': 1}
+        ]
+    },
     'hybrid_athlete': {
         'name': 'The Hybrid Athlete',
         'skills': [
             {'name': 'Hyrox Training', 'current': 1, 'target': 10, 'level': 1},
             {'name': 'Padel', 'current': 1, 'target': 10, 'level': 1},
-            {'name': 'Reformer Pilates', 'current': 5, 'target': 10, 'level': 1},
-            {'name': 'French', 'current': 2, 'target': 100, 'level': 1}
+            {'name': 'Reformer Pilates', 'current': 5, 'target': 10, 'level': 1}
         ]
     },
     'racketmaster': {
@@ -116,7 +128,7 @@ TEMPLATES = {
     },
     'financial_assassin': {
         'name': 'The Financial Assassin',
-        'financial': [
+        'skills': [
             {'name': 'ETF Savings', 'current': 2000, 'target': 10000, 'level': 1},
             {'name': 'Cash Savings', 'current': 1000, 'target': 3000, 'level': 1},
             {'name': 'House Savings', 'current': 2000, 'target': 20000, 'level': 1}
