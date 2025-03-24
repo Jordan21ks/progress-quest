@@ -576,10 +576,27 @@ h1 {
   }
   
   .template-card {
-    width: 100%; /* Full width on mobile */
+    width: 90%; /* Slightly reduced width to fit mobile screen better */
     min-width: unset;
-    max-width: 100%;
+    max-width: 90%;
     margin: 0 auto;
+    border: 3px solid var(--ff-border); /* Thicker borders */
+    box-shadow: 0 4px 12px rgba(0, 0, 48, 0.4); /* Enhanced shadow */
+    position: relative;
+  }
+  
+  /* Add a subtle indicator for clickable templates */
+  .template-card::after {
+    content: '';
+    position: absolute;
+    right: 15px;
+    bottom: 15px;
+    width: 12px;
+    height: 12px;
+    border-right: 3px solid var(--ff-crystal);
+    border-bottom: 3px solid var(--ff-crystal);
+    transform: rotate(-45deg);
+    opacity: 0.7;
   }
 }
 
