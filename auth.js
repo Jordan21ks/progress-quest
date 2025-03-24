@@ -58,6 +58,42 @@ tabs.forEach(tab => {
 // Load and render templates
 async function loadTemplates() {
     console.log('Loading templates...');
+    
+    // Define fallback templates in case API call fails
+    const fallbackTemplates = [
+        {
+            id: "fitness",
+            name: "Fitness Journey",
+            description: "Track your fitness activities",
+            skills: [
+                { name: "Tennis", target: 15, current: 7 },
+                { name: "BJJ", target: 15, current: 1 },
+                { name: "Cycling", target: 10, current: 0 },
+                { name: "Skiing", target: 8, current: 2 },
+                { name: "Padel", target: 10, current: 2 },
+                { name: "Spanish", target: 15, current: 1 },
+                { name: "Pilates", target: 10, current: 0 },
+                { name: "Cooking", target: 10, current: 0 }
+            ]
+        },
+        {
+            id: "finance",
+            name: "Financial Goals",
+            description: "Track your financial progress",
+            financial: [
+                { name: "Debt Repayment", target: 27000, current: 0 }
+            ]
+        },
+        {
+            id: "custom",
+            name: "Start Fresh",
+            description: "Begin with a clean slate",
+            skills: [],
+            financial: []
+        }
+    ];
+    
+    // Find the template grid element
     const templateGrid = document.querySelector('.template-grid');
     
     if (!templateGrid) {
@@ -67,6 +103,8 @@ async function loadTemplates() {
     
     // Show loading indicator
     templateGrid.innerHTML = '<div>Loading templates...</div>';
+    
+    let templates = [];
     
     try {
         console.log('Fetching templates from API...');
@@ -80,34 +118,35 @@ async function loadTemplates() {
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'Origin': 'http://experiencepoints.app'
+                'Origin': 'https://experiencepoints.app'
             },
             mode: 'cors',
             cache: 'no-cache'
         });
             
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            console.warn(`API returned error status: ${response.status}. Using fallback templates.`);
+            templates = fallbackTemplates;
+        } else {
+            console.log('API response received successfully');
+            const data = await response.json();
+            console.log('Template data:', data);
+            
+            if (!data || !Array.isArray(data.templates) || data.templates.length === 0) {
+                console.warn('No templates found in API response. Using fallback templates.');
+                templates = fallbackTemplates;
+            } else {
+                templates = data.templates;
+            }
         }
-        
-        console.log('API response received');
-        const data = await response.json();
-        console.log('Template data:', data);
         
         // Clear existing templates
         templateGrid.innerHTML = '';
         
-        // Check if we have templates
-        if (!data || !Array.isArray(data.templates) || data.templates.length === 0) {
-            console.error('No templates found in API response');
-            templateGrid.innerHTML = '<div class="error-message">No templates available. Please try again later.</div>';
-            return;
-        }
-        
-        console.log(`Found ${data.templates.length} templates`);
+        console.log(`Found ${templates.length} templates to render`);
         
         // Render each template
-        data.templates.forEach(template => {
+        templates.forEach(template => {
             console.log('Processing template:', template.id, template.name);
             const card = document.createElement('div');
             card.className = 'template-card';
