@@ -108,10 +108,18 @@ function initProgressChart() {
 // Function to get chart data directly from skills and goals
 function getChartData() {
     console.log('Getting chart data from current skills and goals');
+    console.log('Current state of window.skills:', window.skills);
+    console.log('Current state of window.financialGoals:', window.financialGoals);
     
     // Start with empty arrays
     let labels = [];
     let data = [];
+    
+    // Check if we have a backup of chart data from loadGoals
+    if (labels.length === 0 && window.backupChartData && window.backupChartData.labels.length > 0) {
+        console.log('Using backup chart data as fallback');
+        return window.backupChartData;
+    }
     
     // First try to use window.skills if they exist
     if (window.skills && window.skills.length > 0) {
@@ -128,6 +136,20 @@ function getChartData() {
         });
     } else {
         console.log('No skills found for chart data');
+        
+        // If no skills but we have test skills, use them
+        if (window.testSkills && window.testSkills.length > 0) {
+            console.log(`Using ${window.testSkills.length} test skills for chart data`);
+            
+            window.testSkills.forEach(skill => {
+                if (skill && skill.name && skill.target > 0) {
+                    labels.push(skill.name);
+                    const percentage = Math.min((skill.current / skill.target) * 100, 100);
+                    data.push(percentage);
+                    console.log(`Added test skill to chart: ${skill.name} = ${percentage}%`);
+                }
+            });
+        }
     }
     
     // Then use window.financialGoals if they exist
@@ -266,20 +288,32 @@ function updateProgressChart() {
     }
     
     // Get fresh data directly from skills using our getChartData function
+    console.log('UPDATE CHART - Starting data refresh');
     const chartData = getChartData();
+    console.log('UPDATE CHART - Got chart data:', chartData);
     
-    // If we have no data, check if we're in development mode
-    if (chartData.labels.length === 0) {
-        const isDev = window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1');
-        console.log('No data available to update chart. Dev mode:', isDev);
-        
-        // In dev mode, use the fallback data
-        if (isDev) {
-            chartData.labels = ['Tennis', 'BJJ', 'Cycling', 'Skiing', 'Padel', 'Spanish'];
-            chartData.data = [46.7, 6.7, 0, 25, 20, 6.7];
-            console.log('Using fallback data in dev mode:', chartData);
+    // If we have no data, check if we have backup data or use development fallbacks
+    if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+        console.warn('UPDATE CHART - No valid chart data available');
+
+        // First try to use backup data created during loadGoals()
+        if (window.backupChartData && window.backupChartData.labels.length > 0) {
+            console.log('Using backup chart data from loadGoals:', window.backupChartData);
+            chartData.labels = [...window.backupChartData.labels];
+            chartData.data = [...window.backupChartData.data];
         } else {
-            return; // In production, just bail if no data
+            // Otherwise check if we're in development mode
+            const isDev = window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1');
+            console.log('No data available to update chart. Dev mode:', isDev);
+            
+            // In dev mode, use the fallback data that matches the user's activities
+            if (isDev) {
+                chartData.labels = ['Tennis', 'BJJ', 'Cycling', 'Skiing', 'Padel', 'Spanish', 'Pilates', 'Cooking'];
+                chartData.data = [46.7, 6.7, 0, 25, 20, 6.7, 0, 0];
+                console.log('Using hardcoded development fallback data:', chartData);
+            } else {
+                return; // In production, just bail if no data
+            }
         }
     }
     
@@ -311,30 +345,57 @@ function updateProgressChart() {
     console.log('Radar chart update completed with', chartData.labels.length, 'data points');
 }
 
-// Function to ensure chart is visible
+// Function to ensure chart is visible with proper dimensions
 function ensureChartCanvasIsVisible() {
+    console.log('Ensuring chart canvas is visible with proper dimensions');
     const chartContainer = document.querySelector('.chart-container');
-    if (chartContainer) {
-        // Force chart container to be visible
-        chartContainer.style.display = 'block';
-        chartContainer.style.visibility = 'visible';
-        chartContainer.style.opacity = '1';
-        chartContainer.style.zIndex = '100';
+    if (!chartContainer) {
+        console.warn('Chart container not found');
+        return;
+    }
+    
+    // Make the chart section visible first
+    const chartSection = document.getElementById('chart-section');
+    if (chartSection) {
+        chartSection.style.display = 'block';
+        chartSection.style.visibility = 'visible';
+    }
+    
+    // Force chart container to be visible with specific dimensions
+    chartContainer.style.display = 'block';
+    chartContainer.style.visibility = 'visible';
+    chartContainer.style.opacity = '1';
+    chartContainer.style.zIndex = '100';
+    chartContainer.style.margin = '0 auto 30px auto';
+    chartContainer.style.width = '100%';
+    chartContainer.style.maxWidth = '400px';
+    chartContainer.style.height = '300px';
+    
+    // Force visibility of the canvas itself with proper dimensions
+    const canvas = document.getElementById('progressChart');
+    if (canvas) {
+        // Set display properties
+        canvas.style.display = 'block';
+        canvas.style.visibility = 'visible';
+        canvas.style.opacity = '1';
+        canvas.style.zIndex = '101';
         
-        // Force visibility of the canvas itself
-        const canvas = document.getElementById('progressChart');
-        if (canvas) {
-            canvas.style.display = 'block';
-            canvas.style.visibility = 'visible';
-            canvas.style.opacity = '1';
-            canvas.style.zIndex = '101';
-            
-            // Set explicit dimensions (important for mobile)
-            canvas.width = 260;
-            canvas.height = 260;
-            canvas.style.width = '260px';
-            canvas.style.height = '260px';
-        }
+        // Set explicit dimensions (important for mobile)
+        canvas.width = 300;
+        canvas.height = 300;
+        canvas.style.width = '300px';
+        canvas.style.height = '300px';
+        
+        console.log('Canvas dimensions set to:', {
+            width: canvas.width,
+            height: canvas.height,
+            styleWidth: canvas.style.width,
+            styleHeight: canvas.style.height,
+            display: window.getComputedStyle(canvas).display,
+            visibility: window.getComputedStyle(canvas).visibility
+        });
+    } else {
+        console.warn('Progress chart canvas element not found');
     }
 }
 
@@ -468,6 +529,20 @@ async function checkAuth() {
 // Load goals from API
 async function loadGoals() {
     console.log('==== CHART DIAGNOSTIC: LOAD GOALS FUNCTION STARTED ====');
+    
+    // Create test data for development use
+    window.testSkills = [
+        { name: 'Tennis', target: 15, current: 7, history: [] },
+        { name: 'BJJ', target: 15, current: 1, history: [] },
+        { name: 'Cycling', target: 10, current: 0, history: [] },
+        { name: 'Skiing', target: 8, current: 2, history: [] },
+        { name: 'Padel', target: 10, current: 2, history: [] },
+        { name: 'Spanish', target: 15, current: 1, history: [] },
+        { name: 'Pilates', target: 10, current: 0, history: [] },
+        { name: 'Cooking', target: 10, current: 0, history: [] }
+    ];
+    console.log('Test skills data created for chart development');
+    
     try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -543,14 +618,43 @@ async function loadGoals() {
         console.log('Financial goals loaded (count):', window.financialGoals ? window.financialGoals.length : 0);
         console.log('Financial goals loaded (data):', JSON.stringify(window.financialGoals));
         
-                // Make sure chart container is visible
+        // Create a backup of the chart data in case it's needed
+        window.backupChartData = {
+            labels: window.skills.map(s => s.name),
+            data: window.skills.map(s => Math.min((s.current / s.target) * 100, 100))
+        };
+        console.log('Backup chart data created:', window.backupChartData);
+        
+        // Dispatch event to notify that skills data is ready
+        document.dispatchEvent(new CustomEvent('skillsLoaded', { 
+            detail: { skillsCount: window.skills.length, goalsCount: window.financialGoals.length } 
+        }));
+        
+        // Make sure chart container is visible (only once)
         ensureChartCanvasIsVisible();
         
-                // Make sure chart container is visible
-        ensureChartCanvasIsVisible();
+        // Create backup chart data that will be available to all functions
+        window.backupChartData = {
+            labels: window.skills.map(s => s.name),
+            data: window.skills.map(s => Math.min((s.current / s.target) * 100, 100))
+        };
+        
+        // If we have no skills, use test skills as fallback but only in development
+        if ((!window.skills || window.skills.length === 0) && window.testSkills) {
+            const isDev = window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1');
+            if (isDev) {
+                console.log('Using test skills as fallback in development environment');
+                window.backupChartData = {
+                    labels: window.testSkills.map(s => s.name),
+                    data: window.testSkills.map(s => Math.min((s.current / s.target) * 100, 100))
+                };
+            }
+        }
+        
+        console.log('Backup chart data created:', window.backupChartData);
         
         // Multi-phase chart initialization strategy to ensure it always displays
-        // Phase 1: Try immediately
+        // Phase 1: Try immediately with the data we just loaded
         initProgressChart();
         
         // Phase 2: After DOM content is fully processed
@@ -604,6 +708,11 @@ async function loadGoals() {
             document.addEventListener('financialGoalAdded', updateProgressChart);
             document.addEventListener('financialGoalUpdated', updateProgressChart);
             document.addEventListener('financialGoalDeleted', updateProgressChart);
+            document.addEventListener('skillsLoaded', updateProgressChart);
+            
+            // Force a final check and update
+            console.log('Forcing final chart update');
+            updateProgressChart();
         }, 1000);
     } catch (error) {
         console.error('Error loading goals:', error);
