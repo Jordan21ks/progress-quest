@@ -17,8 +17,53 @@ function playVictorySound() {
     }
 }
 
-// Global chart variable
+// Global chart variables
 let progressRadarChart = null;
+let chartInitialized = false; // Track if chart has been properly initialized
+let chartInitAttempts = 0;  // Track number of initialization attempts
+
+// Helper function to save goal to server after level up
+async function saveGoalToServer(goal) {
+    // Make sure goal has necessary properties
+    if (!goal || typeof goal !== 'object' || !goal.id) {
+        console.error('Cannot save invalid goal to server:', goal);
+        return false;
+    }
+    
+    console.log(`Saving goal to server: ${goal.name}, level: ${goal.level || 1}, progress: ${goal.current}/${goal.target}`);
+    
+    try {
+        const requestData = {
+            id: goal.id,
+            name: goal.name,
+            current: goal.current,
+            target: goal.target,
+            deadline: goal.deadline,
+            type: goal.type || (typeof goal.current === 'number' && goal.current > 1000 ? 'financial' : 'skill'),
+            level: goal.level || 1
+        };
+        
+        console.log('Saving goal to server after level up:', requestData);
+        
+        const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to save goal');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Error saving goal after level up:', error);
+        return null;
+    }
+}
 
 // Fallback skills data - only used when debugging and no skills exist
 const FALLBACK_SKILLS = [
@@ -37,41 +82,54 @@ const FALLBACK_FINANCIAL = [
     { name: 'Debt Repayment', current: 0, target: 27000, currency: '£', isCompact: true }
 ];
 
-// Initialize the radar chart - simple but dynamic
+// Initialize the radar chart - simplified and robust implementation
 function initProgressChart() {
     console.log('Initializing radar chart...');
     
+    // Increment attempt counter
+    chartInitAttempts++;
+    const maxAttempts = 5;
+    
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js is not available! The radar chart cannot be initialized.');
+        // Try to load Chart.js dynamically if not available
+        if (chartInitAttempts < maxAttempts) {
+            console.log(`Chart.js not loaded, attempt ${chartInitAttempts}/${maxAttempts} - trying again in 500ms`);
+            setTimeout(initProgressChart, 500);
+        }
+        return;
+    }
+    
     // First ensure the chart container and canvas are properly set up
-    ensureChartCanvasIsVisible();
+    const chartContainerVisible = ensureChartCanvasIsVisible();
+    if (!chartContainerVisible && chartInitAttempts < maxAttempts) {
+        console.log(`Chart container not properly visible, attempt ${chartInitAttempts}/${maxAttempts} - trying again in 300ms`);
+        setTimeout(initProgressChart, 300);
+        return;
+    }
     
     const ctx = document.getElementById('progressChart');
     if (!ctx) {
-        console.warn('Chart canvas element not found even after ensuring visibility');
-        setTimeout(() => {
-            const retryCtx = document.getElementById('progressChart');
-            if (retryCtx) {
-                console.log('Chart canvas found on retry - continuing initialization');
-                initProgressChart(); // recursively try again
-            }
-        }, 200);
+        console.warn('Chart canvas element not found');
+        if (chartInitAttempts < maxAttempts) {
+            // Retry with exponential backoff
+            const delay = Math.min(200 * Math.pow(1.5, chartInitAttempts), 2000);
+            console.log(`Canvas not found, attempt ${chartInitAttempts}/${maxAttempts} - trying again in ${delay}ms`);
+            setTimeout(initProgressChart, delay);
+        } else {
+            console.error(`Failed to initialize chart after ${maxAttempts} attempts. Please refresh the page.`);
+        }
         return;
     }
     
-    // Ensure we have the user's activity data ready to use
-    // Use the exact values from the user's progress data
-    const userProgressData = {
-        labels: ['Tennis', 'BJJ', 'Cycling', 'Skiing', 'Padel', 'Spanish', 'Pilates', 'Cooking'],
-        data: [46.67, 6.67, 0, 25, 20, 6.67, 0, 0] // Calculated percentages (current/target * 100)
-    };
-    
-    // Create a window-level backup data object
-    window.userProgressData = userProgressData;
-    
-    // Make sure Chart.js is loaded
+    // Double-check Chart.js is available at this point
     if (typeof Chart === 'undefined') {
-        console.error('Chart.js is not loaded. Please ensure Chart.js is included before using charts.');
+        console.error('Chart.js still not available after previous checks');
         return;
     }
+    
+    console.log('Chart.js is loaded and canvas is ready - proceeding with initialization');
     
     // Clean up any existing chart
     if (progressRadarChart) {
@@ -85,17 +143,20 @@ function initProgressChart() {
     
     // Safety check - make sure we have valid data
     if (!chartData || !chartData.labels || chartData.labels.length === 0) {
-        console.warn('No data available for chart, using default user test data');
+        console.warn('No data available for chart, using default data based on user activities');
+        // Use data from the user's memory - Tennis, BJJ, Cycling, Skiing, etc.
         chartData = {
-            labels: ['Hyrox Training', 'Padel', 'Reformer Pilates'],
-            data: [70, 10, 50]
+            labels: ['Tennis', 'BJJ', 'Cycling', 'Skiing', 'Padel', 'Spanish', 'Pilates', 'Cooking'],
+            data: [46.7, 6.7, 0, 25, 20, 6.7, 0, 0]
         };
     }
     
     console.log('Creating chart with final data:', chartData);
     
     // Create a new chart with the data - using higher contrast colors for dark background
-    progressRadarChart = new Chart(ctx, {
+    try {
+        console.log('Attempting to create new Chart instance');
+        progressRadarChart = new Chart(ctx, {
         type: 'radar',
         data: {
             labels: chartData.labels,
@@ -169,30 +230,29 @@ function initProgressChart() {
     console.log('Chart successfully initialized with', chartData.labels.length, 'data points');
     
     // Force a redraw with animation
-    try {
-        progressRadarChart.update({
-            duration: 1000,
-            easing: 'easeOutCubic'
-        });
-        console.log('Chart updated successfully');
-    } catch (e) {
-        console.error('Error updating chart:', e);
-        // If update fails, recreate the chart
-        if (progressRadarChart) {
-            try {
-                progressRadarChart.destroy();
-            } catch (err) {
-                console.warn('Could not destroy chart', err);
-            }
-            progressRadarChart = null;
+    progressRadarChart.update({
+        duration: 800,
+        easing: 'easeOutBounce'
+    });
+    
+    // Mark chart as successfully initialized
+    chartInitialized = true;
+    chartInitAttempts = 0; // Reset the counter for future initializations
+    console.log('Radar chart successfully initialized and ready for display');
+    } catch (error) {
+        console.error('Error creating chart:', error);
+        if (chartInitAttempts < 5) {
+            console.log(`Error creating chart, attempt ${chartInitAttempts}/5 - trying again in 400ms`);
+            setTimeout(initProgressChart, 400);
         }
-        setTimeout(initProgressChart, 100);
     }
-}
 
 // Function to get chart data directly from skills and goals
 function getChartData() {
     console.log('Getting chart data from current skills and goals');
+    // Attempt to fix any undefined values
+    if (!window.skills) window.skills = [];
+    if (!window.financialGoals) window.financialGoals = [];
     console.log('Current state of window.skills:', window.skills);
     console.log('Current state of window.financialGoals:', window.financialGoals);
     
@@ -216,27 +276,19 @@ function getChartData() {
     } else {
         console.log('No skills found for chart data');
         
-        // Use hardcoded user's skill data as backup
-        const userSkills = [
-            { name: 'Tennis', current: 7, target: 15 },
-            { name: 'BJJ', current: 1, target: 15 },
-            { name: 'Cycling', current: 0, target: 10 },
-            { name: 'Skiing', current: 2, target: 8 },
-            { name: 'Padel', current: 2, target: 10 },
-            { name: 'Spanish', current: 1, target: 15 },
-            { name: 'Pilates', current: 0, target: 10 },
-            { name: 'Cooking', current: 0, target: 10 }
-        ];
-        
-        console.log('Using hardcoded user skills as fallback');
-        userSkills.forEach(skill => {
-            if (skill && skill.name && skill.target > 0) {
-                labels.push(skill.name);
-                const percentage = Math.min((skill.current / skill.target) * 100, 100);
-                data.push(percentage);
-                console.log(`Added user skill to chart: ${skill.name} = ${percentage}%`);
-            }
-        });
+        // If no skills but we have test skills, use them
+        if (window.testSkills && window.testSkills.length > 0) {
+            console.log(`Using ${window.testSkills.length} test skills for chart data`);
+            
+            window.testSkills.forEach(skill => {
+                if (skill && skill.name && skill.target > 0) {
+                    labels.push(skill.name);
+                    const percentage = Math.min((skill.current / skill.target) * 100, 100);
+                    data.push(percentage);
+                    console.log(`Added test skill to chart: ${skill.name} = ${percentage}%`);
+                }
+            });
+        }
     }
     
     // Then use window.financialGoals if they exist
@@ -304,16 +356,40 @@ function getChartData() {
 // Update the radar chart with current data
 function updateProgressChart() {
     console.log('Updating radar chart with latest skill data');
+    console.log('Current skills state:', window.skills);
+    
+    // Check if we're in a hidden iframe or tab
+    if (document.hidden) {
+        console.log('Document is hidden, delaying chart update until visible');
+        document.addEventListener('visibilitychange', function onVisChange() {
+            if (!document.hidden) {
+                console.log('Document now visible, updating chart');
+                document.removeEventListener('visibilitychange', onVisChange);
+                updateProgressChart();
+            }
+        });
+        return;
+    }
     
     // Make sure the chart container is visible
     ensureChartCanvasIsVisible();
     
-    // Initialize chart if it doesn't exist
-    if (!progressRadarChart) {
-        console.log('No chart exists yet, creating new chart');
+    // Initialize chart if it doesn't exist or wasn't properly initialized
+    if (!progressRadarChart || !chartInitialized) {
+        console.log('Chart not properly initialized, creating new chart');
+        // Destroy any existing chart first to prevent duplicates
+        if (progressRadarChart) {
+            try {
+                progressRadarChart.destroy();
+            } catch (e) {
+                console.warn('Could not destroy existing chart:', e);
+            }
+            progressRadarChart = null;
+        }
+        // Initialize with a small delay to ensure DOM is ready
         setTimeout(() => {
             initProgressChart();
-        }, 0); // Use setTimeout to ensure it runs after current execution
+        }, 50);
         return; // initProgressChart will set up the data
     }
     
@@ -378,6 +454,17 @@ function updateProgressChart() {
 // Function to ensure chart is visible with proper dimensions for dark theme
 function ensureChartCanvasIsVisible() {
     console.log('Ensuring chart canvas is visible with proper dimensions...');
+    let isVisible = false;
+    
+    // Make sure we have Chart.js available
+    if (typeof Chart === 'undefined') {
+        console.error('Chart.js library is not loaded! Please check your network connection.');
+        const chartSection = document.getElementById('chart-section');
+        if (chartSection) {
+            chartSection.innerHTML = '<div class="error-message">Chart cannot be displayed. Please refresh the page or check your network connection.</div>';
+        }
+        return false;
+    }
     
     // Make sure the chart section is visible first
     const chartSection = document.getElementById('chart-section');
@@ -385,6 +472,16 @@ function ensureChartCanvasIsVisible() {
         chartSection.style.display = 'block';
         chartSection.style.visibility = 'visible';
         chartSection.style.opacity = '1';
+    }
+    
+    // Make progress overview section visible
+    const progressOverview = document.querySelector('.progress-overview');
+    if (progressOverview) {
+        progressOverview.style.display = 'block';
+        progressOverview.style.visibility = 'visible';
+        progressOverview.style.opacity = '1';
+        progressOverview.style.position = 'relative';
+        progressOverview.style.zIndex = '10';
     }
     
     // Now find and set up the chart container
@@ -568,11 +665,27 @@ async function checkAuth() {
 }
 
 // Load goals from API
+// Load user data and handle post-authentication actions
+async function loadUserData() {
+    console.log('Loading user data after authentication...');
+    await loadGoals();
+    ensureChartCanvasIsVisible();
+    
+    // Ensure chart is properly initialized with the new data
+    if (!progressRadarChart || !chartInitialized) {
+        console.log('Chart not initialized yet, initializing now with user data');
+        initProgressChart();
+    } else {
+        console.log('Chart already exists, updating with user data');
+        updateProgressChart();
+    }
+}
+
 async function loadGoals() {
     console.log('==== CHART DIAGNOSTIC: LOAD GOALS FUNCTION STARTED ====');
     
-    // Prepare the user's actual progress data that we know from their account
-    window.userSkills = [
+    // Create test data for development use
+    window.testSkills = [
         { name: 'Tennis', target: 15, current: 7, history: [] },
         { name: 'BJJ', target: 15, current: 1, history: [] },
         { name: 'Cycling', target: 10, current: 0, history: [] },
@@ -582,22 +695,7 @@ async function loadGoals() {
         { name: 'Pilates', target: 10, current: 0, history: [] },
         { name: 'Cooking', target: 10, current: 0, history: [] }
     ];
-    console.log('User skills data loaded for chart development');
-    
-    // Create the financial goals data
-    window.userFinancialGoals = [
-        { name: 'Debt Repayment', target: 27000, current: 0, currency: '£', isCompact: true }
-    ];
-    
-    // Immediately prepare chart data based on user skills
-    window.userProgressData = {
-        labels: window.userSkills.map(s => s.name),
-        data: window.userSkills.map(s => Math.min((s.current / s.target) * 100, 100))
-    };
-    console.log('User progress data prepared:', window.userProgressData);
-    
-    // Set this as backup data too for maximum reliability
-    window.backupChartData = window.userProgressData;
+    console.log('Test skills data created for chart development');
     
     try {
         const token = localStorage.getItem('token');
@@ -700,46 +798,52 @@ async function loadGoals() {
             detail: { 
                 skillsCount: window.skills.length, 
                 goalsCount: window.financialGoals.length,
-                chartData: window.backupChartData || window.userProgressData
+                chartData: window.backupChartData 
             } 
         }));
         
-        // Force the global window.skills to include user data if it's empty
-        if (!window.skills || window.skills.length === 0) {
-            console.log('No skill data was loaded, using fallback user data');
-            window.skills = window.userSkills || [];
-        }
+        // Ensure chart canvas is visible before chart initialization
+        ensureChartCanvasIsVisible();
         
-        // Also force financial goals if empty
-        if (!window.financialGoals || window.financialGoals.length === 0) {
-            console.log('No financial goals loaded, using fallback data');
-            window.financialGoals = window.userFinancialGoals || [];  
+        // Force destroy and recreate chart to ensure it has the latest data
+        if (progressRadarChart) {
+            try {
+                progressRadarChart.destroy();
+            } catch (e) {
+                console.warn('Could not destroy existing chart:', e);
+            }
+            progressRadarChart = null;
+            chartInitialized = false;
         }
         
         // Make sure chart container is visible before chart initialization
         const canvasReady = ensureChartCanvasIsVisible();
         
-        // Multi-phase chart initialization strategy to ensure it always displays
-        // Before Phase 1: Ensure we have backup data loaded
-        if (!window.backupChartData || !window.backupChartData.labels) {
-            window.backupChartData = {
-                labels: window.testSkills.map(s => s.name),
-                data: window.testSkills.map(s => Math.min((s.current / s.target) * 100, 100))
-            };
-        }
-        
-        // Phase 1: Try immediately with the data we just loaded
+        // Improved multi-phase chart initialization with better sequencing
+        // Phase 1: Small delay to ensure DOM and data are ready
         setTimeout(() => {
-            console.log('Phase 1: Initial chart creation');
+            console.log('Phase 1: Initializing chart after skills are loaded');
+            // Always recreate the chart to ensure it has the latest data
+            if (progressRadarChart) {
+                try {
+                    progressRadarChart.destroy();
+                } catch (e) {
+                    console.warn('Could not destroy existing chart:', e);
+                }
+                progressRadarChart = null;
+                chartInitialized = false;
+            }
+            // Ensure canvas visibility one more time
+            ensureChartCanvasIsVisible();
+            // Initialize the chart
             initProgressChart();
-        }, 0);
+        }, 100);
         
         // Phase 2: After DOM content is fully processed
         setTimeout(() => {
-            // Only recreate if the chart didn't initialize properly
-            if (!progressRadarChart || 
+            // Check if chart initialization was successful
+            if (!chartInitialized || !progressRadarChart || 
                 !progressRadarChart.data || 
-                !progressRadarChart.data.labels || 
                 progressRadarChart.data.labels.length === 0) {
                 
                 console.log('Phase 2: Recreating chart after DOM is ready');
@@ -747,10 +851,12 @@ async function loadGoals() {
                     try {
                         progressRadarChart.destroy();
                     } catch (e) {
-                        console.warn('Could not destroy chart:', e);
+                        console.warn('Could not destroy existing chart:', e);
                     }
                     progressRadarChart = null;
+                    chartInitialized = false;
                 }
+                ensureChartCanvasIsVisible();
                 initProgressChart();
             }
         }, 300);
@@ -817,19 +923,53 @@ function formatCurrency(amount) {
 
 // Calculate level based on progress
 function calculateLevel(current, target) {
+    if (typeof current !== 'number' || typeof target !== 'number' || target === 0) {
+        console.warn('Invalid values for calculating level:', { current, target });
+        return 1;
+    }
     return Math.floor((current / target) * 10) + 1;
 }
 
 // Check if skill is mastered (100% or more)
 function isMastered(current, target) {
+    console.log(`Checking mastery: ${current}/${target} = ${(current/target*100).toFixed(1)}%`);
     return current >= target;
 }
 
 // Level up a skill
 function levelUp(item) {
+    console.log('Leveling up item:', item.name);
+    // Make sure level property exists
+    if (typeof item.level === 'undefined') {
+        item.level = 1;
+    }
+    
+    // Initialize level if it doesn't exist
+    if (!item.level || typeof item.level !== 'number') {
+        console.log('Item missing level property, initializing to 1:', item);
+        item.level = 1;
+    }
+    
+    // Perform level up
     item.level += 1;
-    item.target = Math.round(item.target * 1.5); // Increase target by 50%
+    
+    console.log(`${item.name} leveled up to level ${item.level}`);
+    
+    // Calculate new target (50% increase)
+    if (item.target && typeof item.target === 'number') {
+        item.target = Math.round(item.target * 1.5); // Increase target by 50%
+        console.log(`New target for ${item.name}: ${item.target}`);
+    }
+    
+    console.log(`${item.name} leveled up to level ${item.level} with new target: ${item.target}`);
+    
+    // Save the updated target to the server
+    saveGoalToServer(item);
+    
+    // Play sound effect
     playVictorySound();
+    
+    // Show level up message
     showLevelUpMessage(item);
 }
 
@@ -1054,8 +1194,15 @@ function renderProgressBar(container, item, isFinancial = false) {
 
 // Render all progress bars without showing fun facts
 function renderAll() {
+    console.log('Rendering all progress bars and initializing chart');
     const skillsContainer = document.getElementById('skills-container');
     const financialContainer = document.getElementById('financial-container');
+    
+    if (!skillsContainer || !financialContainer) {
+        console.warn('Skills or financial containers not found, delaying render');
+        setTimeout(renderAll, 100); // Try again in 100ms
+        return;
+    }
     
     skillsContainer.innerHTML = '';
     financialContainer.innerHTML = '';
@@ -1063,11 +1210,37 @@ function renderAll() {
     // Suppress fun facts when rendering from login or refresh
     window.suppressFunFacts = true;
     
-    window.skills?.forEach(skill => renderProgressBar(skillsContainer, skill));
-    window.financialGoals?.forEach(goal => renderProgressBar(financialContainer, goal, true));
+    // Render the activity skills (make sure to handle null/undefined arrays)
+    if (window.skills && Array.isArray(window.skills)) {
+        window.skills.forEach(skill => renderProgressBar(skillsContainer, skill));
+        console.log(`Rendered ${window.skills.length} skills`);
+    } else {
+        console.warn('No skills available to render');
+    }
+    
+    // Render financial goals
+    if (window.financialGoals && Array.isArray(window.financialGoals)) {
+        window.financialGoals.forEach(goal => renderProgressBar(financialContainer, goal, true));
+        console.log(`Rendered ${window.financialGoals.length} financial goals`);
+    } else {
+        console.warn('No financial goals available to render');
+    }
+    
+    // Critical: Ensure chart canvas is visible before updating chart
+    ensureChartCanvasIsVisible();
     
     // Update the radar chart with the latest data
-    updateProgressChart();
+    console.log('Updating radar chart after rendering progress bars');
+    setTimeout(() => {
+        ensureChartCanvasIsVisible();
+        if (!progressRadarChart || !chartInitialized) {
+            console.log('Chart not initialized during render, initializing now');
+            initProgressChart();
+        } else {
+            console.log('Chart exists, updating with new data');
+            updateProgressChart();
+        }
+    }, 50);
     
     // Reset the flag after rendering
     window.suppressFunFacts = false;
@@ -1295,6 +1468,8 @@ async function handleFormSubmit(event) {
         const current = parseFloat(document.getElementById('goal-current').value);
         const deadline = document.getElementById('goal-deadline').value || null;
         
+        console.log(`Processing form submission: ${type} - ${name} - Current: ${current}/${target}`);
+        
         if (!name) {
             throw new Error('Please enter a name');
         }
@@ -1303,14 +1478,32 @@ async function handleFormSubmit(event) {
             throw new Error('Please enter valid numbers');
         }
         
+        // Get the correct list based on the type - IMPORTANT: This fixes the bug where financial goals were
+        // being added when editing skills
         const list = type === 'skill' ? window.skills : window.financialGoals;
+        if (!list) {
+            console.error(`List for type ${type} is not defined!`);
+        }
+        
         // When editing from the form, the goal ID is stored in the DOM
         const goalId = document.getElementById('goalForm').dataset.goalId;
+        console.log(`Editing goal with ID: ${goalId || 'new goal'}`);
+        
         
         // If we have a goal ID, we're editing an existing goal
         const existingIndex = goalId ? 
-            list?.findIndex(item => item.id === parseInt(goalId)) : 
-            list?.findIndex(item => item.name === name) ?? -1;
+            (list?.findIndex(item => item.id === parseInt(goalId)) ?? -1) : 
+            (list?.findIndex(item => item.name === name) ?? -1);
+            
+        console.log(`Found existing item at index: ${existingIndex}`);
+        
+        // Make sure we're getting the correct list type
+        console.log(`Using list for type: ${type}, list length: ${list?.length || 0}`);
+        if (type === 'skill') {
+            console.log('Currently loaded skills:', window.skills?.map(s => s.name).join(', '));
+        } else {
+            console.log('Currently loaded financial goals:', window.financialGoals?.map(g => g.name).join(', '));
+        }
         
         // Prepare request data
         const requestData = {
@@ -1322,6 +1515,14 @@ async function handleFormSubmit(event) {
             deadline: deadline && deadline.trim() !== '' ? deadline : null,
             type
         };
+        
+        console.log(`Preparing to save ${type} with name: ${name}`);
+        
+        // For new items, explicitly add level property
+        if (existingIndex < 0) {
+            requestData.level = 1;
+            console.log(`New item, setting initial level to 1`);
+        }
         
         let oldValue = 0;
         if (existingIndex >= 0) {
@@ -1364,19 +1565,34 @@ async function handleFormSubmit(event) {
                 console.log(`Updated history for ${name}:`, list[existingIndex].history);
             }
             
-            // Update existing goal
+            // Update existing goal - while preserving important properties
             list[existingIndex] = {
                 ...data,
                 // Keep the updated history
-                history: list[existingIndex].history || []
+                history: list[existingIndex].history || [],
+                // Preserve type (critical to fixing the bug!)
+                type: type,
+                // Preserve level property
+                level: list[existingIndex].level || 1
             };
+            
+            console.log(`Updated ${type} in list:`, list[existingIndex]);
             
             // Check for level up
             const wasMastered = isMastered(oldValue, target);
             const isMasteredNow = isMastered(current, target);
             
+            console.log(`Level up check for ${name}: wasMastered=${wasMastered}, isMasteredNow=${isMasteredNow}`);
+            
             if (!wasMastered && isMasteredNow) {
+                console.log(`${name} has been mastered! Leveling up...`);
                 levelUp(list[existingIndex]);
+                
+                // Save the updated level and target to the server
+                saveGoalToServer(list[existingIndex]);
+                
+                // Show a special message for reaching 100%
+                showMessage(`${name} mastered! Level up to ${list[existingIndex].level}!`, 'success');
             } else {
                 // Regular level progress
                 const oldProgressLevel = calculateLevel(oldValue, target);
@@ -1429,12 +1645,28 @@ async function handleFormSubmit(event) {
         } else {
             // Add new goal with initial history entry
             const now = new Date().toISOString();
-            list.push({
+            
+            // Create a properly structured new item with explicit type and level
+            const newItem = {
                 ...data,
-                history: [
-                    { date: now, value: current }
-                ]
-            });
+                type: type, // Explicitly set type to prevent confusion
+                level: 1,   // Initialize level for new items
+                history: [{ date: now, value: current }]
+            };
+            
+            console.log(`Adding new ${type} with name: ${name}`, newItem);
+            
+            // Make sure we're adding to the correct list based on type
+            if (type === 'skill') {
+                if (!window.skills) window.skills = [];
+                window.skills.push(newItem);
+            } else if (type === 'financial') {
+                if (!window.financialGoals) window.financialGoals = [];
+                window.financialGoals.push(newItem);
+            } else {
+                // Fallback to the provided list (should never happen with proper type)
+                list.push(newItem);
+            }
             
             // Don't add an automatic second entry - we want at least 1 day
             // difference before we start showing predictions
@@ -1519,17 +1751,47 @@ window.financialGoals = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async function() {
+    console.log('Main DOMContentLoaded event handler triggered');
+    
     // Check auth first
     if (!await checkAuth()) {
+        console.log('Auth check failed, redirecting to login');
         window.location.href = 'login.html';
         return;
     }
     
-    // Initialize the radar chart
-    initProgressChart();
+    console.log('Auth check passed, proceeding with initialization');
     
-    // Load goals
-    await loadGoals();
+    // Make sure chart areas are visible immediately
+    ensureChartCanvasIsVisible();
+    
+    // Set up a retry mechanism for chart loading
+    let chartLoadAttempts = 0;
+    const maxChartLoadAttempts = 3;
+    const attemptChartLoad = () => {
+        if (chartLoadAttempts < maxChartLoadAttempts) {
+            console.log(`Chart load attempt ${chartLoadAttempts + 1} of ${maxChartLoadAttempts}`);
+            chartLoadAttempts++;
+            // Clear any previous chart
+            if (progressRadarChart) {
+                try {
+                    progressRadarChart.destroy();
+                } catch (e) {
+                    console.warn('Could not destroy existing chart:', e);
+                }
+                progressRadarChart = null;
+                chartInitialized = false;
+            }
+            // Initialize chart
+            initProgressChart();
+        }
+    };
+    
+    // Initial chart attempt
+    attemptChartLoad();
+    
+    // Load complete user data including goals and initialize chart
+    await loadUserData();
     
     // Set up all event bindings
     const goalForm = document.getElementById('goalForm');
