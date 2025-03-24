@@ -579,9 +579,9 @@ h1 {
   }
   
   .template-card {
-    width: 85%; /* Further reduced width for better fit */
+    width: 90%; /* Width increased to 90% as requested */
     min-width: unset;
-    max-width: 350px;
+    max-width: 380px; /* Increased max-width to match wider percentage */
     margin: 0;
     border: 3px solid var(--ff-border); /* Thicker borders */
     box-shadow: 0 4px 12px rgba(0, 0, 48, 0.4); /* Enhanced shadow */
