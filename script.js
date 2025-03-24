@@ -22,6 +22,7 @@ let progressRadarChart = null;
 
 // Initialize the radar chart
 function initProgressChart() {
+    console.log('Initializing radar chart...');
     const ctx = document.getElementById('progressChart');
     if (!ctx) {
         console.warn('Chart canvas element not found');
@@ -32,6 +33,12 @@ function initProgressChart() {
     if (typeof Chart === 'undefined') {
         console.error('Chart.js is not loaded. Please ensure Chart.js is included before using charts.');
         return;
+    }
+    
+    // Check if we already have a chart instance and destroy it to avoid duplicates
+    if (progressRadarChart) {
+        progressRadarChart.destroy();
+        progressRadarChart = null;
     }
     
     // Chart.js configuration
@@ -113,6 +120,17 @@ function initProgressChart() {
 
 // Update the radar chart with current data
 function updateProgressChart() {
+    console.log('Updating radar chart...');
+    
+    // Combine skills and financial goals
+    const allGoals = [...(window.skills || []), ...(window.financialGoals || [])];
+    console.log('All goals for chart:', allGoals);
+    
+    if (!allGoals.length) {
+        console.warn('No goals available for chart');
+        return;
+    }
+    
     // Initialize chart if it doesn't exist
     if (!progressRadarChart) {
         initProgressChart();
@@ -123,10 +141,6 @@ function updateProgressChart() {
         console.warn('Unable to update chart - chart not initialized');
         return;
     }
-    
-    // Combine skills and financial goals
-    const allGoals = [...(window.skills || []), ...(window.financialGoals || [])];
-    if (!allGoals.length) return;
     
     // Generate data for the chart
     const labels = [];
@@ -148,8 +162,22 @@ function updateProgressChart() {
     progressRadarChart.data.labels = labels;
     progressRadarChart.data.datasets[0].data = data;
     
+    console.log('Chart data set:', {
+        labels: labels,
+        data: data
+    });
+    
+    // Force a layout recalculation by setting display to block
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer) {
+        chartContainer.style.display = 'block';
+    }
+    
     // Update the chart
     progressRadarChart.update();
+    
+    // Log success
+    console.log('Radar chart updated successfully');
 }
 
 // Fun facts and progression milestones for skills
@@ -349,16 +377,21 @@ async function loadGoals() {
         // Render progress bars
         renderAll();
         
-        // Make sure to initialize and update the chart
-        if (!progressRadarChart) {
-            initProgressChart();
-        }
-        
         // Debug logging for skills and financial goals
         console.log('Skills loaded:', window.skills);
         console.log('Financial goals loaded:', window.financialGoals);
         
-        updateProgressChart();
+        // We need to initialize and update the chart after a short delay
+        // to ensure the DOM is ready and Chart.js has time to initialize
+        setTimeout(() => {
+            console.log('Delayed chart initialization...');
+            if (progressRadarChart) {
+                progressRadarChart.destroy();
+                progressRadarChart = null;
+            }
+            initProgressChart();
+            updateProgressChart();
+        }, 300);
     } catch (error) {
         console.error('Error loading goals:', error);
         // Only show alert if we have no goals
@@ -1008,18 +1041,20 @@ async function handleFormSubmit(event) {
         
         // Explicitly update the radar chart
         try {
-            if (!progressRadarChart) {
-                console.log('Initializing radar chart...');
-                initProgressChart();
+            // Force chart recreation to ensure it's properly updated
+            if (progressRadarChart) {
+                progressRadarChart.destroy();
+                progressRadarChart = null;
             }
+            console.log('Initializing radar chart after skill added...');
+            initProgressChart();
             
             // Always update the chart with the latest data
-            console.log('Updating radar chart with new data...');
+            console.log('Updating radar chart with new skill data...');
             updateProgressChart();
         } catch (chartError) {
             console.error('Error updating chart:', chartError);
         }
-        updateProgressChart();
         
         hideModal();
         
