@@ -41,24 +41,57 @@ function initProgressChart() {
         progressRadarChart = null;
     }
     
+    // DIAGNOSTIC: Add detailed logging for chart troubleshooting
+    console.log('==== CHART DIAGNOSTIC: INITIALIZATION ====');
+    console.log('window.skills:', JSON.stringify(window.skills));
+    console.log('window.financialGoals:', JSON.stringify(window.financialGoals));
+    
     // Prepare initial chart data
     const allGoals = [...(window.skills || []), ...(window.financialGoals || [])];
-    console.log('Initial goals for chart:', allGoals);
+    console.log('Initial goals for chart (count):', allGoals.length);
+    console.log('Initial goals for chart (full data):', JSON.stringify(allGoals));
     
     // Generate initial data
     const initialLabels = [];
     const initialData = [];
     
+    console.log('==== CHART DIAGNOSTIC: DATA PREPARATION ====');
+    
+    // Log each goal data point for debugging
     allGoals.forEach(goal => {
-        if (!goal.target || goal.target <= 0) return;
+        console.log('Processing goal:', {
+            name: goal.name,
+            current: goal.current,
+            target: goal.target,
+            hasTarget: !!goal.target && goal.target > 0
+        });
+        
+        if (!goal.target || goal.target <= 0) {
+            console.warn('Skipping goal due to invalid target:', goal.name);
+            return;
+        }
+        
         initialLabels.push(goal.name);
         const percentage = Math.min((goal.current / goal.target) * 100, 100);
         initialData.push(percentage);
+        console.log(`Added goal to chart: ${goal.name} = ${percentage}%`);
     });
     
     console.log('Initial chart data:', { labels: initialLabels, data: initialData });
     
+    // DEBUG: Test with hardcoded data if no data available
+    if (initialLabels.length === 0) {
+        console.warn('==== CHART DIAGNOSTIC: NO DATA AVAILABLE - USING TEST DATA ====');
+        initialLabels.push('Test Goal 1', 'Test Goal 2', 'Test Goal 3');
+        initialData.push(60, 40, 75);
+    }
+    
+    console.log('==== CHART DIAGNOSTIC: FINAL CHART DATA ====');
+    console.log('Chart Labels:', initialLabels);
+    console.log('Chart Data:', initialData);
+    
     // Chart.js configuration
+    console.log('Attempting to create new Chart instance...');
     progressRadarChart = new Chart(ctx, {
         type: 'radar',
         data: {
@@ -356,6 +389,7 @@ async function checkAuth() {
 
 // Load goals from API
 async function loadGoals() {
+    console.log('==== CHART DIAGNOSTIC: LOAD GOALS FUNCTION STARTED ====');
     try {
         const token = localStorage.getItem('token');
         if (!token) {
@@ -425,27 +459,69 @@ async function loadGoals() {
         renderAll();
         
         // Debug logging for skills and financial goals
-        console.log('Skills loaded:', window.skills);
-        console.log('Financial goals loaded:', window.financialGoals);
+        console.log('==== CHART DIAGNOSTIC: GOALS LOADED ====');
+        console.log('Skills loaded (count):', window.skills ? window.skills.length : 0);
+        console.log('Skills loaded (data):', JSON.stringify(window.skills));
+        console.log('Financial goals loaded (count):', window.financialGoals ? window.financialGoals.length : 0);
+        console.log('Financial goals loaded (data):', JSON.stringify(window.financialGoals));
+        
+        // DIAGNOSTIC: Test element existence and visibility
+        console.log('==== CHART DIAGNOSTIC: DOM ELEMENTS ====');
+        const chartCanvas = document.getElementById('progressChart');
+        console.log('Chart canvas element exists:', !!chartCanvas);
+        if (chartCanvas) {
+            console.log('Canvas properties:', {
+                width: chartCanvas.width,
+                height: chartCanvas.height,
+                style: chartCanvas.style.cssText,
+                visibility: window.getComputedStyle(chartCanvas).visibility,
+                display: window.getComputedStyle(chartCanvas).display
+            });
+        }
+        
+        const chartContainer = document.querySelector('.chart-container');
+        console.log('Chart container exists:', !!chartContainer);
+        if (chartContainer) {
+            console.log('Container styles:', {
+                visibility: window.getComputedStyle(chartContainer).visibility,
+                display: window.getComputedStyle(chartContainer).display,
+                height: window.getComputedStyle(chartContainer).height,
+                width: window.getComputedStyle(chartContainer).width
+            });
+        }
         
         // We need to initialize and update the chart after a short delay
         // to ensure the DOM is ready and Chart.js has time to initialize
+        console.log('==== CHART DIAGNOSTIC: ATTEMPTING CHART INITIALIZATION ====');
         // Force immediate chart update on page load
         console.log('Forcing immediate chart initialization...');
         if (progressRadarChart) {
             progressRadarChart.destroy();
             progressRadarChart = null;
         }
-        initProgressChart();
+        
+        // Try initializing with a slight delay
         setTimeout(() => {
-            console.log('Delayed chart update...');
-            updateProgressChart();
+            console.log('==== CHART DIAGNOSTIC: DELAYED INITIALIZATION ====');
+            initProgressChart();
             
-            // Try a second update after animation would have finished
             setTimeout(() => {
-                console.log('Secondary chart update...');
+                console.log('==== CHART DIAGNOSTIC: DELAYED UPDATE ====');
                 updateProgressChart();
-            }, 1000);
+                
+                // Try a second update after animation would have finished
+                setTimeout(() => {
+                    console.log('==== CHART DIAGNOSTIC: SECONDARY UPDATE ====');
+                    updateProgressChart();
+                    
+                    // Final check of chart state
+                    console.log('Final chart state:', progressRadarChart ? {
+                        data: progressRadarChart.data,
+                        options: progressRadarChart.options,
+                        type: progressRadarChart.config.type
+                    } : 'Chart not initialized');
+                }, 1000);
+            }, 500);
         }, 300);
     } catch (error) {
         console.error('Error loading goals:', error);
