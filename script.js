@@ -41,19 +41,37 @@ function initProgressChart() {
         progressRadarChart = null;
     }
     
+    // Prepare initial chart data
+    const allGoals = [...(window.skills || []), ...(window.financialGoals || [])];
+    console.log('Initial goals for chart:', allGoals);
+    
+    // Generate initial data
+    const initialLabels = [];
+    const initialData = [];
+    
+    allGoals.forEach(goal => {
+        if (!goal.target || goal.target <= 0) return;
+        initialLabels.push(goal.name);
+        const percentage = Math.min((goal.current / goal.target) * 100, 100);
+        initialData.push(percentage);
+    });
+    
+    console.log('Initial chart data:', { labels: initialLabels, data: initialData });
+    
     // Chart.js configuration
     progressRadarChart = new Chart(ctx, {
         type: 'radar',
         data: {
-            labels: [], // Will be populated dynamically
+            labels: initialLabels,
             datasets: [{
-                label: 'Progress',
-                data: [], // Will be populated dynamically
-                backgroundColor: 'rgba(138, 43, 226, 0.2)', // Matching the app's color scheme
-                borderColor: 'rgba(138, 43, 226, 0.8)',
-                borderWidth: 2,
+                label: 'Progress %',
+                data: initialData,
+                backgroundColor: 'rgba(138, 43, 226, 0.4)', // More visible color
+                borderColor: 'rgba(138, 43, 226, 0.9)',
+                borderWidth: 3,
                 pointBackgroundColor: 'rgba(255, 139, 244, 1)',
                 pointBorderColor: '#fff',
+                pointRadius: 5, // Larger points
                 pointHoverBackgroundColor: '#fff',
                 pointHoverBorderColor: 'rgba(138, 43, 226, 1)'
             }]
@@ -122,6 +140,15 @@ function initProgressChart() {
 function updateProgressChart() {
     console.log('Updating radar chart...');
     
+    // Debug the chart's current state
+    console.log('Current chart state:', progressRadarChart ? 'exists' : 'null');
+    if (progressRadarChart) {
+        console.log('Current chart data:', {
+            labels: progressRadarChart.data.labels,
+            datasets: progressRadarChart.data.datasets
+        });
+    }
+    
     // Combine skills and financial goals
     const allGoals = [...(window.skills || []), ...(window.financialGoals || [])];
     console.log('All goals for chart:', allGoals);
@@ -156,7 +183,17 @@ function updateProgressChart() {
         // Calculate percentage (0-100)
         const percentage = Math.min((goal.current / goal.target) * 100, 100);
         data.push(percentage);
+        
+        // Debug each data point
+        console.log(`Chart data point: ${goal.name} = ${goal.current}/${goal.target} = ${percentage}%`);
     });
+    
+    // Make sure we have data to display
+    if (labels.length === 0 || data.length === 0) {
+        console.error('No valid data for chart - forcing default data');
+        labels = ['Default Goal'];
+        data = [50];
+    }
     
     // Update chart data
     progressRadarChart.data.labels = labels;
@@ -167,17 +204,27 @@ function updateProgressChart() {
         data: data
     });
     
-    // Force a layout recalculation by setting display to block
+    // Force a layout recalculation by making chart visible
     const chartContainer = document.querySelector('.chart-container');
     if (chartContainer) {
         chartContainer.style.display = 'block';
+        chartContainer.style.visibility = 'visible';
+        chartContainer.style.opacity = '1';
     }
     
-    // Update the chart
-    progressRadarChart.update();
+    // Force chart redraw by resizing
+    if (progressRadarChart.resize) {
+        progressRadarChart.resize();
+    }
+    
+    // Update the chart with animation
+    progressRadarChart.update({
+        duration: 800,
+        easing: 'easeOutBounce'
+    });
     
     // Log success
-    console.log('Radar chart updated successfully');
+    console.log('Radar chart updated successfully with ' + labels.length + ' data points');
 }
 
 // Fun facts and progression milestones for skills
@@ -383,14 +430,22 @@ async function loadGoals() {
         
         // We need to initialize and update the chart after a short delay
         // to ensure the DOM is ready and Chart.js has time to initialize
+        // Force immediate chart update on page load
+        console.log('Forcing immediate chart initialization...');
+        if (progressRadarChart) {
+            progressRadarChart.destroy();
+            progressRadarChart = null;
+        }
+        initProgressChart();
         setTimeout(() => {
-            console.log('Delayed chart initialization...');
-            if (progressRadarChart) {
-                progressRadarChart.destroy();
-                progressRadarChart = null;
-            }
-            initProgressChart();
+            console.log('Delayed chart update...');
             updateProgressChart();
+            
+            // Try a second update after animation would have finished
+            setTimeout(() => {
+                console.log('Secondary chart update...');
+                updateProgressChart();
+            }, 1000);
         }, 300);
     } catch (error) {
         console.error('Error loading goals:', error);
