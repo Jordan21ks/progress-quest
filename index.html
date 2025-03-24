@@ -38,9 +38,6 @@
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="favicon.svg">
     
-    <!-- Chart.js for radar charts -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
     <!-- Schema.org markup for Google -->
     <script type="application/ld+json">
     {
@@ -69,13 +66,6 @@
             <div class="user-controls">
                 <span class="user-info"></span>
                 <button id="logoutBtn" class="btn">Logout</button>
-            </div>
-        </div>
-        
-        <div class="progress-overview">
-            <h2>Progress Report</h2>
-            <div class="chart-container">
-                <canvas id="progressChart"></canvas>
             </div>
         </div>
         
@@ -141,72 +131,37 @@
         </div>
     </div>
 
-    <!-- Load scripts -->
-    <script src="script.js"></script>
-    <script>
-        // Ensure DOM is fully loaded before event bindings
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set up click handlers for buttons
-            const logoutBtn = document.getElementById('logoutBtn');
-            if (logoutBtn) {
-                logoutBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    logout();
-                });
+    <!-- Load scripts in correct order -->
+    <script type="module">
+        import { handleFormSubmit, hideModal, deleteGoal } from './script.js';
+        
+        // Set up form handlers
+        document.getElementById('goalForm').addEventListener('submit', handleFormSubmit);
+        document.getElementById('cancelBtn').addEventListener('click', (e) => {
+            e.preventDefault();
+            hideModal();
+        });
+        
+        // Close modal on outside click
+        window.addEventListener('click', (event) => {
+            const modal = document.getElementById('goalModal');
+            if (event.target === modal) {
+                hideModal();
             }
-
-            const addSkillBtn = document.getElementById('addSkillBtn');
-            if (addSkillBtn) {
-                addSkillBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    showAddForm('skill');
-                });
+        });
+        
+        // Handle delete button click
+        document.getElementById('delete-button').addEventListener('click', (e) => {
+            e.preventDefault();
+            const button = e.target;
+            const goalId = button.dataset.id;
+            const goalType = button.dataset.type;
+            
+            if (goalId && goalType) {
+                deleteGoal(goalId, goalType);
             }
-
-            const addFinancialBtn = document.getElementById('addFinancialBtn');
-            if (addFinancialBtn) {
-                addFinancialBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    showAddForm('financial');
-                });
-            }
-
-            const cancelBtn = document.getElementById('cancelBtn');
-            if (cancelBtn) {
-                cancelBtn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    hideModal();
-                });
-            }
-
-            const deleteButton = document.getElementById('delete-button');
-            if (deleteButton) {
-                deleteButton.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    const button = e.target;
-                    const goalId = button.dataset.id;
-                    const goalType = button.dataset.type;
-                    
-                    if (goalId && goalType) {
-                        deleteGoal(goalId, goalType);
-                    }
-                });
-            }
-
-            // Set up form submission handler
-            const goalForm = document.getElementById('goalForm');
-            if (goalForm) {
-                goalForm.addEventListener('submit', handleFormSubmit);
-            }
-
-            // Close modal on outside click
-            window.addEventListener('click', function(event) {
-                const modal = document.getElementById('goalModal');
-                if (event.target === modal) {
-                    hideModal();
-                }
-            });
         });
     </script>
+    <script src="script.js" type="module"></script>
 </body>
 </html>

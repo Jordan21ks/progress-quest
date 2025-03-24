@@ -1,5 +1,4 @@
-// Simple auth.js file without modules
-// This handles login and registration functionality
+import { playVictorySound } from './sounds.js';
 
 // Skill emojis mapping
 const skillEmojis = {
@@ -58,42 +57,6 @@ tabs.forEach(tab => {
 // Load and render templates
 async function loadTemplates() {
     console.log('Loading templates...');
-    
-    // Define fallback templates in case API call fails
-    const fallbackTemplates = [
-        {
-            id: "fitness",
-            name: "Fitness Journey",
-            description: "Track your fitness activities",
-            skills: [
-                { name: "Tennis", target: 15, current: 7 },
-                { name: "BJJ", target: 15, current: 1 },
-                { name: "Cycling", target: 10, current: 0 },
-                { name: "Skiing", target: 8, current: 2 },
-                { name: "Padel", target: 10, current: 2 },
-                { name: "Spanish", target: 15, current: 1 },
-                { name: "Pilates", target: 10, current: 0 },
-                { name: "Cooking", target: 10, current: 0 }
-            ]
-        },
-        {
-            id: "finance",
-            name: "Financial Goals",
-            description: "Track your financial progress",
-            financial: [
-                { name: "Debt Repayment", target: 27000, current: 0 }
-            ]
-        },
-        {
-            id: "custom",
-            name: "Start Fresh",
-            description: "Begin with a clean slate",
-            skills: [],
-            financial: []
-        }
-    ];
-    
-    // Find the template grid element
     const templateGrid = document.querySelector('.template-grid');
     
     if (!templateGrid) {
@@ -104,49 +67,54 @@ async function loadTemplates() {
     // Show loading indicator
     templateGrid.innerHTML = '<div>Loading templates...</div>';
     
-    let templates = [];
-    
     try {
         console.log('Fetching templates from API...');
-        // Use production API endpoint
-        const apiUrl = 'https://experience-points-backend.onrender.com/api/templates';
-        console.log('Using API endpoint:', apiUrl);
+        // Try local server first (for development), then fall back to production
+        let apiUrl = 'http://localhost:5001/api/templates';
+        let response;
         
-        // Make the request with improved headers
-        const response = await fetch(apiUrl, { 
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'Origin': 'https://experiencepoints.app'
-            },
-            mode: 'cors',
-            cache: 'no-cache'
-        });
+        try {
+            console.log('Trying local API first...');
+            response = await fetch(apiUrl, { 
+                headers: {'Accept': 'application/json'},
+                mode: 'cors'
+            });
             
-        if (!response.ok) {
-            console.warn(`API returned error status: ${response.status}. Using fallback templates.`);
-            templates = fallbackTemplates;
-        } else {
-            console.log('API response received successfully');
-            const data = await response.json();
-            console.log('Template data:', data);
+            if (!response.ok) {
+                console.log('Local API failed, falling back to production');
+                throw new Error('Local server not available');
+            }
+        } catch (err) {
+            console.log('Using production API instead due to error:', err.message);
+            apiUrl = 'https://experience-points-backend.onrender.com/api/templates';
+            response = await fetch(apiUrl, { 
+                headers: {'Accept': 'application/json'},
+                mode: 'cors'
+            });
             
-            if (!data || !Array.isArray(data.templates) || data.templates.length === 0) {
-                console.warn('No templates found in API response. Using fallback templates.');
-                templates = fallbackTemplates;
-            } else {
-                templates = data.templates;
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
         }
+        
+        console.log('API response received');
+        const data = await response.json();
+        console.log('Template data:', data);
         
         // Clear existing templates
         templateGrid.innerHTML = '';
         
-        console.log(`Found ${templates.length} templates to render`);
+        // Check if we have templates
+        if (!data || !Array.isArray(data.templates) || data.templates.length === 0) {
+            console.error('No templates found in API response');
+            templateGrid.innerHTML = '<div class="error-message">No templates available. Please try again later.</div>';
+            return;
+        }
+        
+        console.log(`Found ${data.templates.length} templates`);
         
         // Render each template
-        templates.forEach(template => {
+        data.templates.forEach(template => {
             console.log('Processing template:', template.id, template.name);
             const card = document.createElement('div');
             card.className = 'template-card';
@@ -219,10 +187,7 @@ async function loadTemplates() {
                 console.log(`Selected template: ${template.id}`);
                 document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
                 card.classList.add('selected');
-                
-                // Use window.selectedTemplate to ensure global accessibility
-                window.selectedTemplate = template.id;
-                console.log('Template selected and stored in window:', window.selectedTemplate);
+                selectedTemplate = template.id;
                 
                 // Clear error message
                 document.getElementById('register-error').style.display = 'none';
@@ -245,7 +210,8 @@ async function loadTemplates() {
     }
 }
 
-// Template selection is managed via window.selectedTemplate
+// Initialize template selection
+let selectedTemplate = null;
 
 // Load templates when page loads
 document.addEventListener('DOMContentLoaded', loadTemplates);
@@ -284,128 +250,43 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     }
 });
 
-// Declare window.selectedTemplate to ensure global accessibility
-window.selectedTemplate = null;
-
 // Handle registration
 document.getElementById('registerForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const errorDiv = document.getElementById('register-error');
-    errorDiv.textContent = '';
-    errorDiv.style.display = 'none';
     
-    // Check if template is selected
-    if (!window.selectedTemplate) {
-        console.warn('No template selected, defaulting to fitness template');
-        // Default to fitness template if none selected (prevents registration failures)
-        window.selectedTemplate = 'fitness';
-        
-        // Inform the user but don't block registration
-        const warningDiv = document.createElement('div');
-        warningDiv.textContent = 'Using default fitness template';
-        warningDiv.style.color = 'orange';
-        errorDiv.parentNode.insertBefore(warningDiv, errorDiv);
-    } else {
-        console.log('Template selected:', window.selectedTemplate);
-    }
-    
-    // Store the selected template in localStorage
-    localStorage.setItem('selected_template', window.selectedTemplate);
-    console.log('Template saved to localStorage:', window.selectedTemplate);
-    
-    const username = document.getElementById('register-username').value;
-    const password = document.getElementById('register-password').value;
-    
-    if (!username || !password) {
-        errorDiv.textContent = 'Please enter both username and password';
+    if (!selectedTemplate) {
+        errorDiv.textContent = 'Please select a template to begin your journey!';
         errorDiv.style.display = 'block';
         return;
     }
     
-    console.log('Starting registration process...');
-    console.log('Selected template:', window.selectedTemplate);
-    
-    // Show loading state
-    const submitBtn = document.querySelector('#registerForm button[type="submit"]');
-    const originalBtnText = submitBtn.textContent;
-    submitBtn.textContent = 'Creating Account...';
-    submitBtn.disabled = true;
+    const username = document.getElementById('register-username').value;
+    const password = document.getElementById('register-password').value;
     
     try {
-        // Create registration payload
-        const payload = {
-            username,
-            password,
-            template: window.selectedTemplate
-        };
-        
-        console.log('Registration payload:', JSON.stringify(payload));
-        
-        // Make API request
-        console.log('Sending registration request to:', 'https://experience-points-backend.onrender.com/api/register');
         const response = await fetch('https://experience-points-backend.onrender.com/api/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'Origin': 'http://experiencepoints.app'
             },
-            mode: 'cors',
-            cache: 'no-cache',
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ username, password, template: selectedTemplate })
         });
         
-        console.log('Registration response status:', response.status);
+        const data = await response.json();
         
-        // Get response data
-        let data;
-        try {
-            data = await response.json();
-            console.log('Registration response data:', data);
-        } catch (jsonError) {
-            console.error('Error parsing JSON response:', jsonError);
-            throw new Error('Invalid response from server');
-        }
-        
-        // Handle response
         if (response.ok) {
-            // Play sound if available
-            try {
-                if (typeof playVictorySound === 'function') {
-                    playVictorySound();
-                }
-            } catch (soundError) {
-                console.warn('Could not play victory sound:', soundError);
-            }
-            
-            // Save user data
+            playVictorySound();
             localStorage.setItem('token', data.token);
             localStorage.setItem('username', data.user.username);
-            
-            // Make sure template is saved to localStorage
-            if (window.selectedTemplate) {
-                localStorage.setItem('selected_template', window.selectedTemplate);
-                console.log('Saved template to localStorage before redirect:', window.selectedTemplate);
-            }
-            
-            // Redirect to main app
-            console.log('Registration successful, redirecting...');
             window.location.href = 'index.html';
         } else {
-            // Show error message
-            errorDiv.textContent = data.error || 'Registration failed. Please try again.';
+            errorDiv.textContent = data.error || 'Registration failed';
             errorDiv.style.display = 'block';
-            console.error('Registration failed:', data.error);
         }
     } catch (error) {
-        // Handle network or other errors
-        console.error('Registration error:', error);
-        errorDiv.textContent = 'Connection error. Please try again later.';
+        errorDiv.textContent = 'Connection error. Please try again.';
         errorDiv.style.display = 'block';
-    } finally {
-        // Reset button state
-        submitBtn.textContent = originalBtnText;
-        submitBtn.disabled = false;
     }
 });
