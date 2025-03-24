@@ -67,28 +67,72 @@ async function loadTemplatesSimple() {
     // Show loading indicator
     templateGrid.innerHTML = '<div>Loading templates...</div>';
     
+    // Define a fallback set of templates in case we can't load from API
+    const fallbackTemplates = [
+        {
+            id: "fitness",
+            name: "Fitness Journey",
+            description: "Track your fitness activities",
+            skills: [
+                { name: "Tennis", target: 15, current: 7 },
+                { name: "BJJ", target: 15, current: 1 },
+                { name: "Cycling", target: 10, current: 0 },
+                { name: "Skiing", target: 8, current: 2 },
+                { name: "Padel", target: 10, current: 2 },
+                { name: "Spanish", target: 15, current: 1 },
+                { name: "Pilates", target: 10, current: 0 },
+                { name: "Cooking", target: 10, current: 0 }
+            ]
+        },
+        {
+            id: "finance",
+            name: "Financial Goals",
+            description: "Track your financial progress",
+            skills: [],
+            financial: [
+                { name: "Debt Repayment", target: 27000, current: 0 }
+            ]
+        },
+        {
+            id: "custom",
+            name: "Custom Template",
+            description: "Start with a blank slate",
+            skills: [],
+            financial: []
+        }
+    ];
+    
     try {
-        // Try production API
+        console.log('Attempting to fetch templates from API...');
+        
+        // Try production API first
         const apiUrl = 'https://experience-points-backend.onrender.com/api/templates';
         const response = await fetch(apiUrl, { 
-            headers: {'Accept': 'application/json'},
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
             mode: 'cors'
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        let data;
         
-        const data = await response.json();
-        console.log('Template data:', data);
+        if (response.ok) {
+            data = await response.json();
+            console.log('Successfully loaded templates from API:', data);
+        } else {
+            console.warn(`API returned status: ${response.status}. Using fallback templates.`);
+            data = { templates: fallbackTemplates };
+        }
         
         // Clear loading indicator
         templateGrid.innerHTML = '';
         
         // Check if we have templates
         if (!data || !Array.isArray(data.templates) || data.templates.length === 0) {
-            templateGrid.innerHTML = '<div class="error-message">No templates available. Please try again later.</div>';
-            return;
+            console.warn('No templates found in API response. Using fallback templates.');
+            data = { templates: fallbackTemplates };
         }
         
         // Render each template
