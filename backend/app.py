@@ -113,17 +113,18 @@ TEMPLATES = {
         'description': 'Add your own skills + goals',
         'skills': []
     },
-    'sales_expert': {
-        'name': 'The Sales Expert',
+    'learner': {
+        'name': 'The Learner',
+        'description': 'Track learning new skills + financial goals',
         'skills': [
-            {'name': 'Outbound', 'current': 1, 'target': 10, 'level': 1},
-            {'name': 'Discovery', 'current': 1, 'target': 10, 'level': 1},
-            {'name': 'Storytelling', 'current': 1, 'target': 10, 'level': 1},
-            {'name': 'Consulting', 'current': 1, 'target': 10, 'level': 1},
-            {'name': 'Multithreading', 'current': 1, 'target': 10, 'level': 1},
-            {'name': 'Followups', 'current': 1, 'target': 10, 'level': 1},
-            {'name': 'Project Management', 'current': 1, 'target': 10, 'level': 1},
-            {'name': 'Negotiation', 'current': 1, 'target': 10, 'level': 1}
+            {'name': 'Photography', 'current': 0, 'target': 15, 'level': 1},
+            {'name': 'Scuba', 'current': 0, 'target': 10, 'level': 1},
+            {'name': 'Golf', 'current': 0, 'target': 15, 'level': 1},
+            {'name': 'Skiing', 'current': 0, 'target': 8, 'level': 1},
+            {'name': 'Pilates', 'current': 0, 'target': 10, 'level': 1}
+        ],
+        'financial': [
+            {'name': 'ETF Investment', 'current': 0, 'target': 10000, 'level': 1}
         ]
     },
     'hybrid_athlete': {
@@ -171,6 +172,19 @@ TEMPLATES = {
             {'name': 'French', 'current': 1, 'target': 10, 'level': 1},
             {'name': 'Spanish', 'current': 1, 'target': 10, 'level': 1},
             {'name': 'Japanese', 'current': 1, 'target': 10, 'level': 1}
+        ]
+    },
+    'sales_expert': {
+        'name': 'The Sales Expert',
+        'skills': [
+            {'name': 'Outbound', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Discovery', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Storytelling', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Consulting', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Multithreading', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Followups', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Project Management', 'current': 1, 'target': 10, 'level': 1},
+            {'name': 'Negotiation', 'current': 1, 'target': 10, 'level': 1}
         ]
     }
 }
@@ -356,6 +370,26 @@ def update_goal(current_user):
 
 # Dynamic facts database
 DYNAMIC_FACTS = {
+    'Photography': [
+        'Photography improves visual memory by up to 30% through practicing composition.',
+        'Regular photography has been shown to increase mindfulness scores by 25%.',
+        'Photography enthusiasts report 40% higher observation skills in daily life.'
+    ],
+    'Scuba': [
+        'Scuba diving burns 400-700 calories per hour while exploring underwater environments.',
+        'Divers have 15-20% better breath control than non-divers of similar fitness levels.',
+        'Regular scuba diving improves stress resilience by 30% through controlled breathing techniques.'
+    ],
+    'Golf': [
+        'Walking an 18-hole golf course burns approximately 1,500 calories.',
+        'Golf players have 30% better rotational core strength than non-players.',
+        'Regular golf practice improves focus and concentration by 25% in daily activities.'
+    ],
+    'ETF': [
+        'Long-term ETF investors historically outperform active traders by 3-5% annually.',
+        'Regular ETF investments can compound to double your principal in under 10 years at 7% annual growth.',
+        'Diversified ETF portfolios reduce investment volatility by up to 60% compared to single stocks.'
+    ],
     'Tennis': [
         'Studies show tennis players have a 9.7 year increase in life expectancy compared to sedentary individuals.',
         'Tennis improves bone density by 3-7% annually when played regularly.',
