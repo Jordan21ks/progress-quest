@@ -41,19 +41,14 @@ const FALLBACK_FINANCIAL = [
 function initProgressChart() {
     console.log('Initializing radar chart...');
     
-    // Get the canvas element
+    // Get the canvas element and make chart container visible first
+    ensureChartCanvasIsVisible();
+    
     const ctx = document.getElementById('progressChart');
     if (!ctx) {
-        console.warn('Chart canvas element not found');
+        console.warn('Chart canvas element not found even after ensuring visibility');
         return;
     }
-    
-    // Force canvas to be visible with explicit dimensions
-    ctx.width = 300;
-    ctx.height = 300;
-    ctx.style.width = '300px';
-    ctx.style.height = '300px';
-    ctx.style.display = 'block';
     
     // Make sure Chart is defined
     if (typeof Chart === 'undefined') {
@@ -67,10 +62,21 @@ function initProgressChart() {
         progressRadarChart = null;
     }
     
-        // Get data directly from user skills
-    const chartData = getChartData();
+    // Get data directly from user skills
+    let chartData = getChartData();
     
-    // Create a new chart with the real skill data
+    // Safety check - make sure we have valid data
+    if (!chartData || !chartData.labels || chartData.labels.length === 0) {
+        console.warn('No data available for chart, using default test data');
+        chartData = {
+            labels: ['Tennis', 'BJJ', 'Cycling', 'Skiing', 'Padel', 'Spanish', 'Pilates', 'Cooking'],
+            data: [47, 7, 0, 25, 20, 7, 0, 0]
+        };
+    }
+    
+    console.log('Creating chart with data:', chartData);
+    
+    // Create a new chart with the data
     progressRadarChart = new Chart(ctx, {
         type: 'radar',
         data: {
@@ -91,18 +97,53 @@ function initProgressChart() {
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            scale: {
-                ticks: {
-                    beginAtZero: true,
-                    max: 100,
-                    min: 0,
-                    stepSize: 20
+            scales: {
+                r: {
+                    angleLines: {
+                        display: true,
+                        color: 'rgba(150, 150, 150, 0.5)'
+                    },
+                    grid: {
+                        color: 'rgba(150, 150, 150, 0.3)'
+                    },
+                    suggestedMin: 0,
+                    suggestedMax: 100,
+                    ticks: {
+                        backdropColor: 'transparent',
+                        color: 'rgba(100, 100, 100, 0.8)',
+                        stepSize: 20
+                    },
+                    pointLabels: {
+                        color: 'rgba(80, 80, 80, 0.9)',
+                        font: {
+                            size: 12
+                        },
+                        padding: 10
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(30, 30, 60, 0.8)',
+                    callbacks: {
+                        label: function(context) {
+                            return `Progress: ${context.raw.toFixed(0)}%`;
+                        }
+                    }
                 }
             }
         }
     });
     
-    console.log('Chart initialized with data:', chartData);
+    console.log('Chart successfully initialized with', chartData.labels.length, 'data points');
+    
+    // Execute a resize to properly render chart dimensions
+    if (progressRadarChart.resize) {
+        progressRadarChart.resize();
+    }
 }
 
 // Function to get chart data directly from skills and goals
@@ -114,12 +155,6 @@ function getChartData() {
     // Start with empty arrays
     let labels = [];
     let data = [];
-    
-    // Check if we have a backup of chart data from loadGoals
-    if (labels.length === 0 && window.backupChartData && window.backupChartData.labels.length > 0) {
-        console.log('Using backup chart data as fallback');
-        return window.backupChartData;
-    }
     
     // First try to use window.skills if they exist
     if (window.skills && window.skills.length > 0) {
@@ -169,108 +204,49 @@ function getChartData() {
         console.log('No financial goals found for chart data');
     }
     
-    // If still no data, use fallback data but only in development
+    // If still no data, use fallback data
     if (labels.length === 0) {
-        const isDevEnvironment = window.location.href.includes('localhost') || 
-                              window.location.href.includes('127.0.0.1');
-                              
-        console.log('No real data found for chart. Dev environment:', isDevEnvironment);
+        // First check if we have backup chart data from loadGoals
+        if (window.backupChartData && window.backupChartData.labels && window.backupChartData.labels.length > 0) {
+            console.log('Using backup chart data as fallback:', window.backupChartData);
+            return window.backupChartData;
+        }
         
-        // Only use fallback data during development
-        if (isDevEnvironment) {
-            console.log('Using fallback skills data for development');
-            
-            // Use our hardcoded fallbacks
-            FALLBACK_SKILLS.forEach(skill => {
-                labels.push(skill.name);
-                const percentage = Math.min((skill.current / skill.target) * 100, 100);
-                data.push(percentage);
+        // Then try test skills
+        if (window.testSkills && window.testSkills.length > 0) {
+            console.log('Using test skills as fallback');
+            window.testSkills.forEach(skill => {
+                if (skill && skill.name && skill.target > 0) {
+                    labels.push(skill.name);
+                    const percentage = Math.min((skill.current / skill.target) * 100, 100);
+                    data.push(percentage);
+                }
             });
+        }
+        
+        // Finally try hardcoded fallbacks
+        if (labels.length === 0) {
+            const isDevEnvironment = window.location.href.includes('localhost') || 
+                                  window.location.href.includes('127.0.0.1');
+                                  
+            console.log('No real data found for chart. Using hardcoded fallbacks in dev environment:', isDevEnvironment);
+            
+            // Only use fallback data during development
+            if (isDevEnvironment) {
+                console.log('Using fallback skills data for development');
+                
+                // Use our hardcoded fallbacks
+                FALLBACK_SKILLS.forEach(skill => {
+                    labels.push(skill.name);
+                    const percentage = Math.min((skill.current / skill.target) * 100, 100);
+                    data.push(percentage);
+                });
+            }
         }
     }
     
-    console.log('Final chart data prepared:', { labels, data });
+    console.log('Final chart data prepared:', { labels, data, count: labels.length });
     return { labels, data };
-    
-        // Use real data from skills for the chart
-    const chartData = getChartData();
-    
-    // Create a new radar chart with the data
-    progressRadarChart = new Chart(ctx, {
-        type: 'radar',
-        data: {
-            labels: chartData.labels,
-            datasets: [{
-                label: 'Progress %',
-                data: chartData.data,
-                backgroundColor: 'rgba(138, 43, 226, 0.6)',
-                borderColor: 'rgba(138, 43, 226, 1)',
-                borderWidth: 3,
-                pointBackgroundColor: 'rgba(255, 139, 244, 1)',
-                pointBorderColor: '#fff',
-                pointRadius: 6,
-                pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgba(138, 43, 226, 1)'
-            }]
-        },
-        options: {
-            scales: {
-                r: {
-                    angleLines: {
-                        color: 'rgba(255, 255, 255, 0.2)'
-                    },
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.2)'
-                    },
-                    pointLabels: {
-                        color: 'rgba(255, 255, 255, 0.9)',
-                        font: {
-                            family: "'Press Start 2P', monospace",
-                            size: 10
-                        }
-                    },
-                    ticks: {
-                        color: 'rgba(255, 255, 255, 0.8)',
-                        backdropColor: 'transparent',
-                        font: {
-                            family: "'Press Start 2P', monospace",
-                            size: 8
-                        }
-                    },
-                    suggestedMin: 0,
-                    suggestedMax: 100
-                }
-            },
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: 'rgba(0, 0, 48, 0.7)',
-                    titleFont: {
-                        family: "'Press Start 2P', monospace",
-                        size: 10
-                    },
-                    bodyFont: {
-                        family: "'Press Start 2P', monospace",
-                        size: 10
-                    },
-                    callbacks: {
-                        label: function(context) {
-                            return `Progress: ${context.raw.toFixed(0)}%`;
-                        }
-                    }
-                }
-            },
-            elements: {
-                line: {
-                    tension: 0.1
-                }
-            },
-            responsive: true,
-            maintainAspectRatio: false
-        }
-    });
 }
 
 // Update the radar chart with current data
