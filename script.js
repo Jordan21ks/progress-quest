@@ -41,7 +41,7 @@ const FALLBACK_FINANCIAL = [
 function initProgressChart() {
     console.log('Initializing radar chart...');
     
-    // Get the canvas element and make chart container visible first
+    // First ensure the chart container and canvas are properly set up
     ensureChartCanvasIsVisible();
     
     const ctx = document.getElementById('progressChart');
@@ -50,7 +50,7 @@ function initProgressChart() {
         return;
     }
     
-    // Make sure Chart is defined
+    // Make sure Chart.js is loaded
     if (typeof Chart === 'undefined') {
         console.error('Chart.js is not loaded. Please ensure Chart.js is included before using charts.');
         return;
@@ -64,19 +64,20 @@ function initProgressChart() {
     
     // Get data directly from user skills
     let chartData = getChartData();
+    console.log('Retrieved chart data:', chartData);
     
     // Safety check - make sure we have valid data
     if (!chartData || !chartData.labels || chartData.labels.length === 0) {
-        console.warn('No data available for chart, using default test data');
+        console.warn('No data available for chart, using default user test data');
         chartData = {
-            labels: ['Tennis', 'BJJ', 'Cycling', 'Skiing', 'Padel', 'Spanish', 'Pilates', 'Cooking'],
-            data: [47, 7, 0, 25, 20, 7, 0, 0]
+            labels: ['Hyrox Training', 'Padel', 'Reformer Pilates'],
+            data: [70, 10, 50]
         };
     }
     
-    console.log('Creating chart with data:', chartData);
+    console.log('Creating chart with final data:', chartData);
     
-    // Create a new chart with the data
+    // Create a new chart with the data - using higher contrast colors for dark background
     progressRadarChart = new Chart(ctx, {
         type: 'radar',
         data: {
@@ -84,14 +85,15 @@ function initProgressChart() {
             datasets: [{
                 label: 'Progress %',
                 data: chartData.data,
-                backgroundColor: 'rgba(138, 43, 226, 0.6)',
-                borderColor: 'rgba(138, 43, 226, 1)',
+                backgroundColor: 'rgba(138, 43, 226, 0.7)', // More vibrant purple fill
+                borderColor: 'rgba(200, 100, 255, 1)',      // Brighter purple border
                 borderWidth: 3,
-                pointBackgroundColor: 'rgba(255, 139, 244, 1)',
+                pointBackgroundColor: 'rgba(255, 100, 255, 1)', // Brighter pink points
                 pointBorderColor: '#fff',
                 pointRadius: 6,
+                pointHoverRadius: 8,
                 pointHoverBackgroundColor: '#fff',
-                pointHoverBorderColor: 'rgba(138, 43, 226, 1)'
+                pointHoverBorderColor: 'rgba(255, 100, 255, 1)'
             }]
         },
         options: {
@@ -101,24 +103,28 @@ function initProgressChart() {
                 r: {
                     angleLines: {
                         display: true,
-                        color: 'rgba(150, 150, 150, 0.5)'
+                        color: 'rgba(200, 200, 200, 0.4)'  // Brighter grid lines
                     },
                     grid: {
-                        color: 'rgba(150, 150, 150, 0.3)'
+                        color: 'rgba(200, 200, 200, 0.2)'  // Brighter grid
                     },
                     suggestedMin: 0,
                     suggestedMax: 100,
                     ticks: {
                         backdropColor: 'transparent',
-                        color: 'rgba(100, 100, 100, 0.8)',
-                        stepSize: 20
+                        color: 'rgba(200, 200, 200, 0.8)',  // Brighter tick labels
+                        stepSize: 20,
+                        font: {
+                            size: 10
+                        }
                     },
                     pointLabels: {
-                        color: 'rgba(80, 80, 80, 0.9)',
+                        color: 'rgba(255, 255, 255, 0.9)',  // White axis labels
                         font: {
-                            size: 12
+                            size: 12,
+                            weight: 'bold'
                         },
-                        padding: 10
+                        padding: 15
                     }
                 }
             },
@@ -127,7 +133,12 @@ function initProgressChart() {
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(30, 30, 60, 0.8)',
+                    backgroundColor: 'rgba(30, 30, 60, 0.9)',
+                    titleColor: 'rgba(255, 255, 255, 1)',
+                    bodyColor: 'rgba(255, 255, 255, 1)',
+                    titleFont: {
+                        weight: 'bold'
+                    },
                     callbacks: {
                         label: function(context) {
                             return `Progress: ${context.raw.toFixed(0)}%`;
@@ -140,10 +151,11 @@ function initProgressChart() {
     
     console.log('Chart successfully initialized with', chartData.labels.length, 'data points');
     
-    // Execute a resize to properly render chart dimensions
-    if (progressRadarChart.resize) {
-        progressRadarChart.resize();
-    }
+    // Force a redraw with animation
+    progressRadarChart.update({
+        duration: 800,
+        easing: 'easeOutBounce'
+    });
 }
 
 // Function to get chart data directly from skills and goals
@@ -321,23 +333,26 @@ function updateProgressChart() {
     console.log('Radar chart update completed with', chartData.labels.length, 'data points');
 }
 
-// Function to ensure chart is visible with proper dimensions
+// Function to ensure chart is visible with proper dimensions for dark theme
 function ensureChartCanvasIsVisible() {
-    console.log('Ensuring chart canvas is visible with proper dimensions');
-    const chartContainer = document.querySelector('.chart-container');
-    if (!chartContainer) {
-        console.warn('Chart container not found');
-        return;
-    }
+    console.log('Ensuring chart canvas is visible with proper dimensions...');
     
-    // Make the chart section visible first
+    // Make sure the chart section is visible first
     const chartSection = document.getElementById('chart-section');
     if (chartSection) {
         chartSection.style.display = 'block';
         chartSection.style.visibility = 'visible';
+        chartSection.style.opacity = '1';
     }
     
-    // Force chart container to be visible with specific dimensions
+    // Now find and set up the chart container
+    const chartContainer = document.querySelector('.chart-container');
+    if (!chartContainer) {
+        console.error('Chart container not found, cannot display chart');
+        return false;
+    }
+    
+    // Set chart container dimensions and styles
     chartContainer.style.display = 'block';
     chartContainer.style.visibility = 'visible';
     chartContainer.style.opacity = '1';
@@ -346,33 +361,41 @@ function ensureChartCanvasIsVisible() {
     chartContainer.style.width = '100%';
     chartContainer.style.maxWidth = '400px';
     chartContainer.style.height = '300px';
+    chartContainer.style.position = 'relative';
+    chartContainer.style.background = 'rgba(0, 0, 30, 0.1)';
+    chartContainer.style.borderRadius = '50%';
     
-    // Force visibility of the canvas itself with proper dimensions
+    // Now set up the canvas properly
     const canvas = document.getElementById('progressChart');
-    if (canvas) {
-        // Set display properties
-        canvas.style.display = 'block';
-        canvas.style.visibility = 'visible';
-        canvas.style.opacity = '1';
-        canvas.style.zIndex = '101';
-        
-        // Set explicit dimensions (important for mobile)
-        canvas.width = 300;
-        canvas.height = 300;
-        canvas.style.width = '300px';
-        canvas.style.height = '300px';
-        
-        console.log('Canvas dimensions set to:', {
-            width: canvas.width,
-            height: canvas.height,
-            styleWidth: canvas.style.width,
-            styleHeight: canvas.style.height,
-            display: window.getComputedStyle(canvas).display,
-            visibility: window.getComputedStyle(canvas).visibility
-        });
-    } else {
-        console.warn('Progress chart canvas element not found');
+    if (!canvas) {
+        console.error('Chart canvas element not found');
+        return false;
     }
+    
+    // Apply the necessary display properties with improved styling
+    canvas.style.display = 'block';
+    canvas.style.visibility = 'visible';
+    canvas.style.opacity = '1';
+    canvas.style.zIndex = '101';
+    
+    // Set explicit dimensions (important for mobile)
+    canvas.width = 300;
+    canvas.height = 300;
+    canvas.style.width = '300px';
+    canvas.style.height = '300px';
+    
+    // Debug logging
+    console.log('Canvas dimensions and visibility set:', {
+        width: canvas.width,
+        height: canvas.height,
+        styleWidth: canvas.style.width,
+        styleHeight: canvas.style.height,
+        display: window.getComputedStyle(canvas).display,
+        visibility: window.getComputedStyle(canvas).visibility,
+        containerVisible: chartContainer.style.display
+    });
+    
+    return true; // Return success
 }
 
 // Fun facts and progression milestones for skills
@@ -594,32 +617,18 @@ async function loadGoals() {
         console.log('Financial goals loaded (count):', window.financialGoals ? window.financialGoals.length : 0);
         console.log('Financial goals loaded (data):', JSON.stringify(window.financialGoals));
         
-        // Create a backup of the chart data in case it's needed
-        window.backupChartData = {
-            labels: window.skills.map(s => s.name),
-            data: window.skills.map(s => Math.min((s.current / s.target) * 100, 100))
-        };
-        console.log('Backup chart data created:', window.backupChartData);
-        
-        // Dispatch event to notify that skills data is ready
-        document.dispatchEvent(new CustomEvent('skillsLoaded', { 
-            detail: { skillsCount: window.skills.length, goalsCount: window.financialGoals.length } 
-        }));
-        
-        // Make sure chart container is visible (only once)
-        ensureChartCanvasIsVisible();
-        
-        // Create backup chart data that will be available to all functions
+        // Create comprehensive backup chart data from current skills
         window.backupChartData = {
             labels: window.skills.map(s => s.name),
             data: window.skills.map(s => Math.min((s.current / s.target) * 100, 100))
         };
         
-        // If we have no skills, use test skills as fallback but only in development
-        if ((!window.skills || window.skills.length === 0) && window.testSkills) {
-            const isDev = window.location.href.includes('localhost') || window.location.href.includes('127.0.0.1');
-            if (isDev) {
-                console.log('Using test skills as fallback in development environment');
+        // If we have no skills but have test skills, use them (only in non-production)
+        if ((!window.skills || window.skills.length === 0 || window.skills[0].current === 0) && window.testSkills) {
+            const isNonProduction = !window.location.href.includes('experiencepoints.app');
+            
+            if (isNonProduction) {
+                console.log('Using test skills as fallback in non-production environment');
                 window.backupChartData = {
                     labels: window.testSkills.map(s => s.name),
                     data: window.testSkills.map(s => Math.min((s.current / s.target) * 100, 100))
@@ -627,7 +636,19 @@ async function loadGoals() {
             }
         }
         
-        console.log('Backup chart data created:', window.backupChartData);
+        console.log('Final backup chart data ready:', window.backupChartData);
+        
+        // Dispatch event to notify that skills data is ready
+        document.dispatchEvent(new CustomEvent('skillsLoaded', { 
+            detail: { 
+                skillsCount: window.skills.length, 
+                goalsCount: window.financialGoals.length,
+                chartData: window.backupChartData 
+            } 
+        }));
+        
+        // Make sure chart container is visible before chart initialization
+        const canvasReady = ensureChartCanvasIsVisible();
         
         // Multi-phase chart initialization strategy to ensure it always displays
         // Phase 1: Try immediately with the data we just loaded
