@@ -373,6 +373,7 @@ h1 {
   margin-top: 35px;
   border-top: 1px solid rgba(74, 74, 127, 0.3);
   padding-top: 30px;
+  width: 100%; /* Ensure full width of container */
 }
 
 .form-group label {
@@ -573,16 +574,19 @@ h1 {
     overflow-y: visible;
     padding: 0;
     gap: 20px; /* Increase spacing between templates */
+    align-items: center; /* Center templates in the grid */
+    width: 100%; /* Ensure grid takes full container width */
   }
   
   .template-card {
-    width: 90%; /* Slightly reduced width to fit mobile screen better */
+    width: 85%; /* Further reduced width for better fit */
     min-width: unset;
-    max-width: 90%;
-    margin: 0 auto;
+    max-width: 350px;
+    margin: 0;
     border: 3px solid var(--ff-border); /* Thicker borders */
     box-shadow: 0 4px 12px rgba(0, 0, 48, 0.4); /* Enhanced shadow */
     position: relative;
+    box-sizing: border-box;
   }
   
   /* Add a subtle indicator for clickable templates */
