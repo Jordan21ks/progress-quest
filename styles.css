@@ -952,3 +952,38 @@ header nav a:hover,
 header nav a.active {
     color: var(--ff-gold);
 }
+
+/* Loading animation for templates */
+.loading-templates {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80px;
+    width: 100%;
+    text-align: center;
+    font-size: 18px;
+    color: var(--primary-color);
+    opacity: 0.8;
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+.loading-templates:after {
+    content: '.';
+    animation: loadingDots 1.5s infinite;
+    width: 24px;
+    display: inline-block;
+    text-align: left;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.5; }
+    50% { opacity: 1; }
+    100% { opacity: 0.5; }
+}
+
+@keyframes loadingDots {
+    0% { content: '.'; }
+    33% { content: '..'; }
+    66% { content: '...'; }
+    100% { content: '.'; }
+}
