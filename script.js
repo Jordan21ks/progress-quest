@@ -1,4 +1,5 @@
 import { playLevelUpSound, playVictorySound } from './sounds.js';
+import { skillEmojis, formatCurrency, getToken, getUsername } from './data.js';
 
 // Fun facts and progression milestones for skills
 const SKILL_FACTS = {
@@ -94,29 +95,13 @@ const FINANCIAL_FACTS = [
 ];
 
 // Data storage
-// Check authentication with multi-storage fallback mechanism
+// Check authentication using shared helper functions
 async function checkAuth() {
-    // Try to get token from multiple storage mechanisms
-    let token = localStorage.getItem('token');
-    let username = localStorage.getItem('username');
+    // Get token and username using helper functions
+    const token = getToken();
+    const username = getUsername();
     
-    // If not in localStorage, try sessionStorage
-    if (!token || !username) {
-        token = sessionStorage.getItem('token');
-        username = sessionStorage.getItem('username');
-    }
-    
-    // If still not found, try cookies
-    if (!token || !username) {
-        const cookies = document.cookie.split(';');
-        for (let cookie of cookies) {
-            const [name, value] = cookie.trim().split('=');
-            if (name === 'token') token = value;
-            if (name === 'username') username = value;
-        }
-    }
-    
-    // If we still don't have valid credentials, redirect to login
+    // If we don't have valid credentials, redirect to login
     if (!token || !username) {
         window.location.href = 'login.html';
         return false;
@@ -149,47 +134,55 @@ async function checkAuth() {
             return false;
         }
         
-        // Ensure token is saved in all storage mechanisms for future requests
-        try {
-            localStorage.setItem('token', token);
-            localStorage.setItem('username', username);
-            sessionStorage.setItem('token', token);
-            sessionStorage.setItem('username', username);
-            document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Strict`;
-            document.cookie = `username=${username}; path=/; max-age=604800; SameSite=Strict`;
-        } catch (storageError) {
-            console.warn('Storage error:', storageError);
-            // If localStorage fails, ensure at least cookie is set
-            document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Strict`;
-            document.cookie = `username=${username}; path=/; max-age=604800; SameSite=Strict`;
-        }
+        // Don't try to re-save tokens during auth check, as this can cause race conditions
+        // Just verify they exist - they're already stored properly during login
+        // Instead, we'll just update the UI with the username
         
         document.querySelector('.user-info').textContent = `👤 ${username}`;
         return true;
     } catch (error) {
         console.error('Auth check failed:', error);
-        window.location.href = 'login.html';
+        // Only redirect if it's an AbortError (timeout) or the token is definitely invalid
+        // This prevents race conditions where we aggressively redirect for network glitches
+        if (error.name === 'AbortError' || !token) {
+            window.location.href = 'login.html';
+            return false;
+        }
+        // For other errors (like network issues), allow the page to keep trying
         return false;
     }
 }
 
-// Load goals from API
+// Load goals from API with improved error handling
 export async function loadGoals() {
     try {
-        const token = localStorage.getItem('token');
+        const token = getToken();
         if (!token) {
             window.location.href = 'login.html';
             return;
         }
         
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
         const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
+        
         if (response.status === 401) {
+            // Clear all storage mechanisms
             localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('username');
+            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+            document.cookie = 'username=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
             window.location.href = 'login.html';
             return;
         }
@@ -225,13 +218,7 @@ export async function loadGoals() {
 
 // Placeholder for imported sound functions
 
-// Format currency
-function formatCurrency(amount) {
-    if (amount >= 1000) {
-        return `£${(amount / 1000).toFixed(0)}k`;
-    }
-    return `£${amount}`;
-}
+// formatCurrency is now imported from data.js
 
 // Calculate level based on progress
 function calculateLevel(current, target) {
@@ -356,11 +343,27 @@ function getTimelineStatus(item) {
     }
 }
 
+// Helper function to generate timeline HTML
+function generateTimelineHTML(item, hasDeadline, hasSufficientData, prediction, timelineStatus, daysLeft) {
+    if (!hasDeadline && (!hasSufficientData || prediction === null)) {
+        return '';
+    }
+    
+    return `
+        <div class="timeline-info">
+            ${hasDeadline ? `<span>⏰ Deadline: ${formatDate(item.deadline)} (${daysLeft} days)</span>` : ''}
+            ${(hasSufficientData && prediction !== null) ? `
+                <span style="color: ${timelineStatus.color}">🎯 Predicted: ${formatDate(prediction)}</span>
+                <span style="color: ${timelineStatus.color}">📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>
+            ` : ''}
+        </div>
+    `;
+}
+
 // Render progress bars with FF-style
 function renderProgressBar(container, item, isFinancial = false) {
-    // Original calculation with debug logging
+    // Calculate progress percentage
     const percentage = (item.current / item.target) * 100;
-    console.log(`Progress for ${item.name}: ${item.current}/${item.target} = ${percentage}%`);
     const mastered = isMastered(item.current, item.target);
     
     // Get previous progress if element exists
@@ -430,13 +433,7 @@ function renderProgressBar(container, item, isFinancial = false) {
         <div class="progress-bar">
             <div class="progress-fill" style="width: ${Math.min(percentage, 100)}%"></div>
         </div>
-        <div class="timeline-info">
-            ${hasDeadline ? `<span>⏰ Deadline: ${formatDate(item.deadline)} (${daysLeft} days)</span>` : ''}
-            ${(hasSufficientData && prediction !== null && prediction) ? `
-                <span style="color: ${timelineStatus.color}">🎯 Predicted: ${formatDate(prediction)}</span>
-                <span style="color: ${timelineStatus.color}">📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>
-            ` : ''}
-        </div>
+        ${generateTimelineHTML(item, hasDeadline, hasSufficientData, prediction, timelineStatus, daysLeft)}
     `;
 
     // Play celebration sound if reaching 100%, but only when updating
@@ -523,37 +520,7 @@ export function showAddForm(type) {
     nameInput.focus();
 }
 
-// Skill emojis mapping
-const skillEmojis = {
-    // Sports
-    'Tennis': '🎾',
-    'BJJ': '🥋',
-    'Cycling': '🚴',
-    'Skiing': '⛷️',
-    'Padel': '🏸',
-    'Pilates': '🧘',
-    
-    // Languages
-    'Spanish': '🗣️',
-    'French': '🇫🇷',
-    'Japanese': '🇯🇵',
-    
-    // Hyrox
-    '1km Running': '🏃',
-    'Skierg': '🎿',
-    'Row': '🚣',
-    'Sled Push': '🛷',
-    'Burpee Broad Jumps': '💪',
-    'Sandbag Lunges': '🏋️',
-    'Sled Pull': '🛷',
-    'Wall Balls': '🏀',
-    'Farmers Carry': '🏋️',
-    
-    // Others
-    'Cooking': '👨‍🍳',
-    'Hyrox Training': '🏃',
-    'Reformer Pilates': '🧘'
-};
+// skillEmojis now imported from data.js
 
 // Show edit form
 function showEditForm(item, type, event) {
@@ -642,14 +609,21 @@ export async function deleteGoal(goalId, type) {
             }
         } catch (err) {
             console.log('Using production API instead:', err.message);
+            // Use timeout for delete request
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 10000);
+            
             apiUrl = `https://experience-points-backend.onrender.com/api/goals/${goalId}`;
             response = await fetch(apiUrl, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    'Authorization': `Bearer ${getToken()}`,
                     'Accept': 'application/json'
-                }
+                },
+                signal: controller.signal
             });
+            
+            clearTimeout(timeoutId);
             
             if (!response.ok) {
                 const data = await response.json();
@@ -737,15 +711,22 @@ export async function handleFormSubmit(event) {
             oldValue = list[existingIndex].current || 0;
         }
         
-        // Send to backend
+        // Use timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        
+        // Send to backend using getToken helper
         const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                'Authorization': `Bearer ${getToken()}`
             },
-            body: JSON.stringify(requestData)
+            body: JSON.stringify(requestData),
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         const data = await response.json();
         
@@ -816,14 +797,21 @@ export async function handleFormSubmit(event) {
                         'debt repayment financial advice research';
                     
                     try {
+                        // Add timeout for facts API call
+                        const factsController = new AbortController();
+                        const factsTimeoutId = setTimeout(() => factsController.abort(), 8000); // Shorter timeout for facts
+                        
                         const response = await fetch('https://experience-points-backend.onrender.com/api/facts', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                                'Authorization': `Bearer ${getToken()}`
                             },
-                            body: JSON.stringify({ searchTerm })
+                            body: JSON.stringify({ searchTerm }),
+                            signal: factsController.signal
                         });
+                        
+                        clearTimeout(factsTimeoutId);
                         
                         if (response.ok) {
                             const { fact } = await response.json();
@@ -861,10 +849,19 @@ export async function handleFormSubmit(event) {
     }
 }
 
-// Handle logout
+// Handle logout with improved cleanup
 function logout() {
-    localStorage.removeItem('token');
-    localStorage.removeItem('username');
+    // Clear all storage mechanisms
+    ['token', 'username', 'auth_timestamp'].forEach(item => {
+        localStorage.removeItem(item);
+        sessionStorage.removeItem(item);
+    });
+    
+    // Clear cookies by setting expiration in the past
+    document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    document.cookie = 'username=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+    
+    // Redirect to login page
     window.location.href = 'login.html';
 }
 

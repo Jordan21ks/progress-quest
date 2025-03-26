@@ -34,9 +34,14 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:5001 https://experience-points-backend.onrender.com; connect-src 'self' http://localhost:5001 https://experience-points-backend.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://images.squarespace-cdn.com">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
-    <!-- Favicon -->
+    <!-- Favicon and PWA Support -->
     <link rel="icon" href="favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="favicon.svg">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3498db">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Experience Points">
     
     <!-- Schema.org markup for Google -->
     <script type="application/ld+json">
@@ -163,5 +168,6 @@
         });
     </script>
     <script src="script.js" type="module"></script>
+    <script src="pwa.js"></script>
 </body>
 </html>
