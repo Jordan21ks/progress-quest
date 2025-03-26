@@ -168,8 +168,9 @@ document.addEventListener('DOMContentLoaded', loadTemplates);
 // Centralized token storage function
 function storeAuthToken(token, username) {
     try {
-        // Store in multiple places for redundancy
+        // Store in all places for redundancy
         sessionStorage.setItem('token', token);
+        sessionStorage.setItem('username', username); // Added missing username in sessionStorage
         localStorage.setItem('token', token);
         localStorage.setItem('username', username);
         localStorage.setItem('auth_timestamp', Date.now().toString());
@@ -180,7 +181,16 @@ function storeAuthToken(token, username) {
         return true;
     } catch (storageError) {
         console.error('Storage error:', storageError);
-        // Fallback to just cookies if localStorage fails
+        // Fallback to just cookies if storage fails
+        try {
+            // Try to at least store in sessionStorage if localStorage fails
+            sessionStorage.setItem('token', token);
+            sessionStorage.setItem('username', username);
+        } catch (err) {
+            console.error('Both localStorage and sessionStorage failed:', err);
+        }
+        
+        // Cookies as final fallback
         document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Strict`;
         document.cookie = `username=${username}; path=/; max-age=604800; SameSite=Strict`;
         return true;

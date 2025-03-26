@@ -134,26 +134,21 @@ async function checkAuth() {
             return false;
         }
         
-        // Ensure token is saved in all storage mechanisms for future requests
-        try {
-            localStorage.setItem('token', token);
-            localStorage.setItem('username', username);
-            sessionStorage.setItem('token', token);
-            sessionStorage.setItem('username', username);
-            document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Strict`;
-            document.cookie = `username=${username}; path=/; max-age=604800; SameSite=Strict`;
-        } catch (storageError) {
-            console.warn('Storage error:', storageError);
-            // If localStorage fails, ensure at least cookie is set
-            document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Strict`;
-            document.cookie = `username=${username}; path=/; max-age=604800; SameSite=Strict`;
-        }
+        // Don't try to re-save tokens during auth check, as this can cause race conditions
+        // Just verify they exist - they're already stored properly during login
+        // Instead, we'll just update the UI with the username
         
         document.querySelector('.user-info').textContent = `👤 ${username}`;
         return true;
     } catch (error) {
         console.error('Auth check failed:', error);
-        window.location.href = 'login.html';
+        // Only redirect if it's an AbortError (timeout) or the token is definitely invalid
+        // This prevents race conditions where we aggressively redirect for network glitches
+        if (error.name === 'AbortError' || !token) {
+            window.location.href = 'login.html';
+            return false;
+        }
+        // For other errors (like network issues), allow the page to keep trying
         return false;
     }
 }

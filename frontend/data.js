@@ -73,7 +73,12 @@ export function getUsername() {
     // Try localStorage first
     let username = localStorage.getItem('username');
     
-    // If not in localStorage, try cookies
+    // If not in localStorage, try sessionStorage
+    if (!username) {
+        username = sessionStorage.getItem('username');
+    }
+    
+    // If still not found, try cookies
     if (!username) {
         const cookies = document.cookie.split(';');
         for (const cookie of cookies) {
