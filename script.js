@@ -153,13 +153,34 @@ async function checkAuth() {
     }
 }
 
-// Load goals from API with improved error handling
+// Load goals from API with improved error handling and offline support
 export async function loadGoals() {
     try {
         const token = getToken();
         if (!token) {
             window.location.href = 'login.html';
             return;
+        }
+        
+        // Try to load from local storage cache first for immediate display
+        const cachedGoals = localStorage.getItem('cached_goals');
+        if (cachedGoals) {
+            try {
+                const parsedGoals = JSON.parse(cachedGoals);
+                const cacheTimestamp = localStorage.getItem('goals_cache_timestamp');
+                const now = Date.now();
+                
+                // If cache is less than 5 minutes old, use it immediately while fetching fresh data
+                if (cacheTimestamp && (now - parseInt(cacheTimestamp)) < 300000) {
+                    console.log('Using cached goals while fetching updates');
+                    window.skills = parsedGoals.skills || [];
+                    window.financialGoals = parsedGoals.financial || [];
+                    renderAll();
+                }
+            } catch (e) {
+                console.warn('Failed to parse cached goals:', e);
+                // Continue to fetch from server
+            }
         }
         
         // Add timeout to prevent hanging requests
@@ -190,12 +211,40 @@ export async function loadGoals() {
         const data = await response.json();
         
         if (!response.ok) {
+            // Try to load from cache if server request failed
+            const cachedGoals = localStorage.getItem('cached_goals');
+            if (cachedGoals) {
+                try {
+                    const parsedGoals = JSON.parse(cachedGoals);
+                    window.skills = parsedGoals.skills || [];
+                    window.financialGoals = parsedGoals.financial || [];
+                    renderAll();
+                    
+                    console.warn('Using cached data due to server error');
+                    return; // Skip the error since we loaded from cache
+                } catch (e) {
+                    console.error('Failed to parse cached goals:', e);
+                }
+            }
+            
             throw new Error(data.error || 'Failed to load your goals');
         }
         
         // Initialize or update arrays
         window.skills = Array.isArray(data.skills) ? data.skills : [];
         window.financialGoals = Array.isArray(data.financial) ? data.financial : [];
+        
+        // Cache the goals data for offline access
+        try {
+            const goalsCache = {
+                skills: window.skills,
+                financial: window.financialGoals,
+            };
+            localStorage.setItem('cached_goals', JSON.stringify(goalsCache));
+            localStorage.setItem('goals_cache_timestamp', Date.now().toString());
+        } catch (e) {
+            console.warn('Failed to cache goals:', e);
+        }
         
         // Ensure history arrays exist
         window.skills.forEach(skill => {

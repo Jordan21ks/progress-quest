@@ -46,29 +46,75 @@ self.addEventListener('activate', event => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', event => {
-  // Skip cross-origin requests
+  // Skip cross-origin requests except for the backend API
   if (event.request.url.startsWith(self.location.origin) || 
       event.request.url.includes('fonts.googleapis.com') || 
-      event.request.url.includes('fonts.gstatic.com')) {
+      event.request.url.includes('fonts.gstatic.com') ||
+      event.request.url.includes('experience-points-backend.onrender.com')) {
     
-    // For API requests, use network first strategy
+    // For API requests, use network-first with offline caching
     if (event.request.url.includes('/api/')) {
-      event.respondWith(
-        fetch(event.request)
-          .then(response => {
-            return response;
-          })
-          .catch(() => {
-            // If network fails, we don't have much to show for API calls
-            // Just return a basic error response
-            return new Response(JSON.stringify({ 
-              error: 'You are offline. Please reconnect to update data.'
-            }), {
-              headers: { 'Content-Type': 'application/json' },
-              status: 503
-            });
-          })
-      );
+      // Special handling for GET requests to goals endpoint - these contain user progress data
+      if (event.request.url.includes('/api/goals') && event.request.method === 'GET') {
+        event.respondWith(
+          fetch(event.request.clone())
+            .then(response => {
+              // Clone the response to store in cache
+              const responseToCache = response.clone();
+              
+              // Store the successful response in cache for offline use
+              caches.open('api-goals-cache')
+                .then(cache => {
+                  cache.put(event.request, responseToCache);
+                });
+              
+              return response;
+            })
+            .catch(() => {
+              // If network fails, try to get from cache
+              return caches.match(event.request)
+                .then(cachedResponse => {
+                  if (cachedResponse) {
+                    // Return cached goals data
+                    return cachedResponse;
+                  }
+                  
+                  // If no cached data, return error
+                  return new Response(JSON.stringify({ 
+                    error: 'You are offline. Your progress data will be synchronized when you reconnect.'
+                  }), {
+                    headers: { 'Content-Type': 'application/json' },
+                    status: 503
+                  });
+                });
+            })
+        );
+      } else {
+        // For other API requests, use network first with basic fallback
+        event.respondWith(
+          fetch(event.request)
+            .then(response => {
+              return response;
+            })
+            .catch(() => {
+              // Check if we have a cached version
+              return caches.match(event.request)
+                .then(cachedResponse => {
+                  if (cachedResponse) {
+                    return cachedResponse;
+                  }
+                  
+                  // If no cached version, return error response
+                  return new Response(JSON.stringify({ 
+                    error: 'You are offline. Please reconnect to update data.'
+                  }), {
+                    headers: { 'Content-Type': 'application/json' },
+                    status: 503
+                  });
+                });
+            })
+        );
+      }
     } else {
       // For static assets, use cache first strategy
       event.respondWith(

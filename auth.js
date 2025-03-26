@@ -166,7 +166,7 @@ let selectedTemplate = null;
 document.addEventListener('DOMContentLoaded', loadTemplates);
 
 // Centralized token storage function
-function storeAuthToken(token, username, rememberMe = false) {
+function storeAuthToken(token, username, rememberMe = true) {
     try {
         // Calculate expiration time based on "Remember Me" choice
         // 30 days if remember me is checked, otherwise session only
@@ -283,7 +283,8 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
-    const rememberMe = document.getElementById('remember-me').checked;
+    // Always remember users by default for 30 days
+    const rememberMe = true;
     const errorDiv = document.getElementById('login-error');
     const submitButton = document.querySelector('#loginForm .btn');
     
