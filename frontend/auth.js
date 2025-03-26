@@ -42,9 +42,10 @@ function processItems(items) {
 // Generate template HTML
 function generateTemplateHTML(template) {
     let skillsList = '';
+    let financialList = '';
     
     // Process skills
-    if (template.skills && Array.isArray(template.skills)) {
+    if (template.skills && Array.isArray(template.skills) && template.skills.length > 0) {
         const skillsData = processItems(template.skills);
         
         if (skillsData.length > 0) {
@@ -59,13 +60,14 @@ function generateTemplateHTML(template) {
                 </div>
             `;
         }
-    } 
-    // Process financial goals
-    else if (template.financial && Array.isArray(template.financial)) {
+    }
+    
+    // Process financial goals - now we always check for financial goals
+    if (template.financial && Array.isArray(template.financial) && template.financial.length > 0) {
         const financialData = processItems(template.financial);
         
         if (financialData.length > 0) {
-            skillsList = `
+            financialList = `
                 <div class="template-skills">
                     <h4>💰 Financial Goals:</h4>
                     <ul>
@@ -78,12 +80,27 @@ function generateTemplateHTML(template) {
         }
     }
     
+    // Set a default description for templates that don't have one
+    let description = template.description;
+    if (!description || description.trim() === '') {
+        if (template.id === 'financial_assassin') {
+            description = 'Master your finances with these key saving goals';
+        } else if (template.skills.length > 0 && template.financial.length === 0) {
+            description = 'Build your skills with focused progress tracking';
+        } else if (template.financial.length > 0 && template.skills.length === 0) {
+            description = 'Reach your financial milestones step by step';
+        } else {
+            description = 'Track your progress and achieve your goals';
+        }
+    }
+    
     return {
         id: template.id,
         html: `
             <h3>${template.name}</h3>
-            ${template.description ? `<p class="template-description">${template.description}</p>` : ''}
+            <p class="template-description">${description}</p>
             ${skillsList}
+            ${financialList}
         `
     };
 }
