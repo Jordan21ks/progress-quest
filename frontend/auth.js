@@ -166,24 +166,45 @@ let selectedTemplate = null;
 document.addEventListener('DOMContentLoaded', loadTemplates);
 
 // Centralized token storage function
-function storeAuthToken(token, username) {
+function storeAuthToken(token, username, rememberMe = false) {
     try {
-        // Store in all places for redundancy
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('username', username); // Added missing username in sessionStorage
-        localStorage.setItem('token', token);
-        localStorage.setItem('username', username);
-        localStorage.setItem('auth_timestamp', Date.now().toString());
+        // Calculate expiration time based on "Remember Me" choice
+        // 30 days if remember me is checked, otherwise session only
+        const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 0; // 30 days or session-only
+        const expireDate = new Date();
+        expireDate.setTime(expireDate.getTime() + (maxAge * 1000));
         
-        // Cookie as fallback (expires in 7 days)
-        document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Strict`;
-        document.cookie = `username=${username}; path=/; max-age=604800; SameSite=Strict`;
+        // Always store in sessionStorage for current session
+        sessionStorage.setItem('token', token);
+        sessionStorage.setItem('username', username);
+        
+        // Only store in localStorage and set persistent cookies if "Remember Me" is checked
+        if (rememberMe) {
+            localStorage.setItem('token', token);
+            localStorage.setItem('username', username);
+            localStorage.setItem('auth_timestamp', Date.now().toString());
+            localStorage.setItem('remember_me', 'true');
+            
+            // Persistent cookies with expiration date
+            document.cookie = `token=${token}; path=/; expires=${expireDate.toUTCString()}; SameSite=Strict`;
+            document.cookie = `username=${username}; path=/; expires=${expireDate.toUTCString()}; SameSite=Strict`;
+        } else {
+            // Clear localStorage entries to ensure they aren't persisted
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            localStorage.removeItem('auth_timestamp');
+            localStorage.removeItem('remember_me');
+            
+            // Session cookies (no expiration = browser session only)
+            document.cookie = `token=${token}; path=/; SameSite=Strict`;
+            document.cookie = `username=${username}; path=/; SameSite=Strict`;
+        }
         return true;
     } catch (storageError) {
         console.error('Storage error:', storageError);
-        // Fallback to just cookies if storage fails
+        // Fallback handling
         try {
-            // Try to at least store in sessionStorage if localStorage fails
+            // Always try sessionStorage as minimum
             sessionStorage.setItem('token', token);
             sessionStorage.setItem('username', username);
         } catch (err) {
@@ -191,8 +212,17 @@ function storeAuthToken(token, username) {
         }
         
         // Cookies as final fallback
-        document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Strict`;
-        document.cookie = `username=${username}; path=/; max-age=604800; SameSite=Strict`;
+        const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 0; // 30 days or session-only
+        const expireDate = new Date();
+        expireDate.setTime(expireDate.getTime() + (maxAge * 1000));
+        
+        if (rememberMe) {
+            document.cookie = `token=${token}; path=/; expires=${expireDate.toUTCString()}; SameSite=Strict`;
+            document.cookie = `username=${username}; path=/; expires=${expireDate.toUTCString()}; SameSite=Strict`;
+        } else {
+            document.cookie = `token=${token}; path=/; SameSite=Strict`;
+            document.cookie = `username=${username}; path=/; SameSite=Strict`;
+        }
         return true;
     }
 }
@@ -205,20 +235,30 @@ async function handleAuthForm(formType, formData, errorDiv, submitButton) {
     
     try {
         const endpoint = formType === 'login' ? 'login' : 'register';
+        
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        
         const response = await fetch(`https://experience-points-backend.onrender.com/api/${endpoint}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(formData),
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
         
         const data = await response.json();
         
         if (response.ok) {
             playVictorySound();
-            storeAuthToken(data.token, data.user.username);
+            // Pass the remember me preference from login form
+            const rememberMe = formData.rememberMe !== undefined ? formData.rememberMe : false;
+            storeAuthToken(data.token, data.user.username, rememberMe);
             window.location.href = 'index.html';
             return true;
         } else {
@@ -243,10 +283,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
+    const rememberMe = document.getElementById('remember-me').checked;
     const errorDiv = document.getElementById('login-error');
     const submitButton = document.querySelector('#loginForm .btn');
     
-    await handleAuthForm('login', { username, password }, errorDiv, submitButton);
+    await handleAuthForm('login', { username, password, rememberMe }, errorDiv, submitButton);
 });
 
 // Handle registration
