@@ -1,11 +1,11 @@
 // Script to force clear caches - with protection against refresh loops
 
-// Only run cache clearing once per session
-if (!sessionStorage.getItem('cache_cleared')) {
-  console.log('First visit this session - checking if cache needs clearing');
+// Force cache clearing for the template fix
+if (!sessionStorage.getItem('cache_cleared_v2')) {
+  console.log('Applying template fix - clearing all caches');
   
   // Set flag immediately to prevent multiple executions even if async operations take time
-  sessionStorage.setItem('cache_cleared', 'true');
+  sessionStorage.setItem('cache_cleared_v2', 'true');
   
   // Check if we need to clear by looking for cached versions
   let shouldClearCache = false;
@@ -59,5 +59,5 @@ if (!sessionStorage.getItem('cache_cleared')) {
     console.log('Cache appears to be up-to-date, no clearing needed');
   }
 } else {
-  console.log('Cache already checked this session - no action needed');
+  console.log('Cache already checked this session (v2) - no action needed');
 }
