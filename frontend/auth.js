@@ -207,62 +207,85 @@ document.addEventListener('DOMContentLoaded', loadTemplates);
 // Centralized token storage function
 function storeAuthToken(token, username, rememberMe = true) {
     try {
-        // Calculate expiration time based on "Remember Me" choice
-        // 30 days if remember me is checked, otherwise session only
-        const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 0; // 30 days or session-only
+        // Force rememberMe to true for permanent login persistence
+        rememberMe = true;
+        
+        // Calculate expiration time - 30 days by default
+        const maxAge = 60 * 60 * 24 * 30; // 30 days
         const expireDate = new Date();
         expireDate.setTime(expireDate.getTime() + (maxAge * 1000));
         
-        // Always store in sessionStorage for current session
-        sessionStorage.setItem('token', token);
-        sessionStorage.setItem('username', username);
-        
-        // Only store in localStorage and set persistent cookies if "Remember Me" is checked
-        if (rememberMe) {
+        // Store in all available storage mechanisms for redundancy
+        // First, store in localStorage which persists across sessions
+        try {
             localStorage.setItem('token', token);
             localStorage.setItem('username', username);
             localStorage.setItem('auth_timestamp', Date.now().toString());
             localStorage.setItem('remember_me', 'true');
-            
-            // Persistent cookies with expiration date
-            document.cookie = `token=${token}; path=/; expires=${expireDate.toUTCString()}; SameSite=Strict`;
-            document.cookie = `username=${username}; path=/; expires=${expireDate.toUTCString()}; SameSite=Strict`;
-        } else {
-            // Clear localStorage entries to ensure they aren't persisted
-            localStorage.removeItem('token');
-            localStorage.removeItem('username');
-            localStorage.removeItem('auth_timestamp');
-            localStorage.removeItem('remember_me');
-            
-            // Session cookies (no expiration = browser session only)
-            document.cookie = `token=${token}; path=/; SameSite=Strict`;
-            document.cookie = `username=${username}; path=/; SameSite=Strict`;
+            console.log('Successfully stored auth in localStorage');
+        } catch (localStorageError) {
+            console.warn('localStorage storage failed:', localStorageError);
         }
-        return true;
-    } catch (storageError) {
-        console.error('Storage error:', storageError);
-        // Fallback handling
+        
+        // Next, store in sessionStorage for the current session
         try {
-            // Always try sessionStorage as minimum
             sessionStorage.setItem('token', token);
             sessionStorage.setItem('username', username);
-        } catch (err) {
-            console.error('Both localStorage and sessionStorage failed:', err);
+            sessionStorage.setItem('auth_timestamp', Date.now().toString());
+            console.log('Successfully stored auth in sessionStorage');
+        } catch (sessionStorageError) {
+            console.warn('sessionStorage storage failed:', sessionStorageError);
         }
         
-        // Cookies as final fallback
-        const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 0; // 30 days or session-only
-        const expireDate = new Date();
-        expireDate.setTime(expireDate.getTime() + (maxAge * 1000));
-        
-        if (rememberMe) {
+        // Finally, use cookies with a long expiration as a reliable backup
+        try {
+            // Store account existence separate from the auth token
+            // This helps us remember registered users even if token expires
+            document.cookie = `registered_user=${username}; path=/; expires=${new Date(2147483647000).toUTCString()}; SameSite=Strict`;
+            
+            // Set auth cookies with proper expiration
             document.cookie = `token=${token}; path=/; expires=${expireDate.toUTCString()}; SameSite=Strict`;
             document.cookie = `username=${username}; path=/; expires=${expireDate.toUTCString()}; SameSite=Strict`;
-        } else {
+            console.log('Successfully stored auth in cookies');
+        } catch (cookieError) {
+            console.warn('Cookie storage failed:', cookieError);
+        }
+        
+        // Also store the registered status in localStorage to remember registrations
+        try {
+            // Get existing registered users
+            let registeredUsers = [];
+            const existing = localStorage.getItem('registered_users');
+            if (existing) {
+                try {
+                    registeredUsers = JSON.parse(existing);
+                } catch (e) {
+                    registeredUsers = [];
+                }
+            }
+            
+            // Add current user if not already registered
+            if (!registeredUsers.includes(username)) {
+                registeredUsers.push(username);
+                localStorage.setItem('registered_users', JSON.stringify(registeredUsers));
+            }
+        } catch (registrationError) {
+            console.warn('Failed to store registration status:', registrationError);
+        }
+        
+        return true;
+    } catch (storageError) {
+        console.error('All storage mechanisms failed:', storageError);
+        
+        // Last resort - try to at least set a session cookie
+        try {
             document.cookie = `token=${token}; path=/; SameSite=Strict`;
             document.cookie = `username=${username}; path=/; SameSite=Strict`;
+            return true;
+        } catch (finalError) {
+            console.error('Complete storage failure:', finalError);
+            return false;
         }
-        return true;
     }
 }
 
@@ -316,8 +339,43 @@ async function handleAuthForm(formType, formData, errorDiv, submitButton) {
     }
 }
 
+// Auto-populate login form with previous username
+document.addEventListener('DOMContentLoaded', () => {
+    const loginForm = document.getElementById('loginForm');
+    if (!loginForm) return;
+    
+    // Try to auto-populate from previous login session
+    const usernameField = document.getElementById('login-username');
+    if (usernameField) {
+        // Check for previously saved username in multiple storage locations
+        const lastUsername = sessionStorage.getItem('last_username') || 
+                            localStorage.getItem('username') || 
+                            getCookieValue('username') || 
+                            getCookieValue('registered_user');
+                            
+        if (lastUsername) {
+            usernameField.value = lastUsername;
+            // Focus on password field since we already have the username
+            const passwordField = document.getElementById('login-password');
+            if (passwordField) {
+                setTimeout(() => passwordField.focus(), 100);
+            }
+        }
+    }
+});
+
+// Helper to get cookie values
+function getCookieValue(name) {
+    const cookies = document.cookie.split(';');
+    for (const cookie of cookies) {
+        const [cookieName, value] = cookie.trim().split('=');
+        if (cookieName === name) return value;
+    }
+    return null;
+}
+
 // Handle login
-document.getElementById('loginForm').addEventListener('submit', async (e) => {
+document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const username = document.getElementById('login-username').value;
@@ -326,6 +384,9 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const rememberMe = true;
     const errorDiv = document.getElementById('login-error');
     const submitButton = document.querySelector('#loginForm .btn');
+    
+    // Store this as last username for potential future login attempts
+    sessionStorage.setItem('last_username', username);
     
     await handleAuthForm('login', { username, password, rememberMe }, errorDiv, submitButton);
 });
