@@ -94,28 +94,74 @@ const FINANCIAL_FACTS = [
 ];
 
 // Data storage
-// Check authentication
+// Check authentication with multi-storage fallback mechanism
 async function checkAuth() {
-    const token = localStorage.getItem('token');
-    const username = localStorage.getItem('username');
+    // Try to get token from multiple storage mechanisms
+    let token = localStorage.getItem('token');
+    let username = localStorage.getItem('username');
     
+    // If not in localStorage, try sessionStorage
+    if (!token || !username) {
+        token = sessionStorage.getItem('token');
+        username = sessionStorage.getItem('username');
+    }
+    
+    // If still not found, try cookies
+    if (!token || !username) {
+        const cookies = document.cookie.split(';');
+        for (let cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'token') token = value;
+            if (name === 'username') username = value;
+        }
+    }
+    
+    // If we still don't have valid credentials, redirect to login
     if (!token || !username) {
         window.location.href = 'login.html';
         return false;
     }
     
     try {
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+        
         const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            credentials: 'same-origin', // Include cookies in the request
+            signal: controller.signal
         });
         
+        clearTimeout(timeoutId);
+        
         if (response.status === 401) {
+            // Clear all storage mechanisms
             localStorage.removeItem('token');
             localStorage.removeItem('username');
+            sessionStorage.removeItem('token');
+            sessionStorage.removeItem('username');
+            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+            document.cookie = 'username=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
             window.location.href = 'login.html';
             return false;
+        }
+        
+        // Ensure token is saved in all storage mechanisms for future requests
+        try {
+            localStorage.setItem('token', token);
+            localStorage.setItem('username', username);
+            sessionStorage.setItem('token', token);
+            sessionStorage.setItem('username', username);
+            document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Strict`;
+            document.cookie = `username=${username}; path=/; max-age=604800; SameSite=Strict`;
+        } catch (storageError) {
+            console.warn('Storage error:', storageError);
+            // If localStorage fails, ensure at least cookie is set
+            document.cookie = `token=${token}; path=/; max-age=604800; SameSite=Strict`;
+            document.cookie = `username=${username}; path=/; max-age=604800; SameSite=Strict`;
         }
         
         document.querySelector('.user-info').textContent = `👤 ${username}`;
