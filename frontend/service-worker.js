@@ -1,6 +1,6 @@
 // Service Worker for Experience Points Progressive Web App
 
-const CACHE_NAME = 'exp-points-cache-v1';
+const CACHE_NAME = 'exp-points-cache-v2'; // Incremented version to force refresh
 const ASSETS_TO_CACHE = [
   '/',
   '/index.html',
@@ -31,17 +31,20 @@ self.addEventListener('install', event => {
 self.addEventListener('activate', event => {
   event.waitUntil(
     caches.keys().then(cacheNames => {
+      // Force delete ALL caches to ensure fresh content
       return Promise.all(
-        cacheNames.filter(cacheName => {
-          return cacheName !== CACHE_NAME;
-        }).map(cacheName => {
+        cacheNames.map(cacheName => {
+          console.log('Deleting cache:', cacheName);
           return caches.delete(cacheName);
         })
-      );
+      ).then(() => {
+        console.log('All caches cleared, will rebuild with fresh content');
+      });
     })
   );
-  // Claim clients so the SW is in effect immediately
-  self.clients.claim();
+  
+  // Immediately claim all clients and control them
+  event.waitUntil(self.clients.claim());
 });
 
 // Fetch event - serve from cache, fallback to network
