@@ -1,6 +1,19 @@
 import { playVictorySound } from './sounds.js';
 import { skillEmojis } from './data.js'; // Import from shared data file
 
+// Hardcoded financial assassin template to ensure it always displays correctly
+const financialAssassinTemplate = {
+    id: "financial_assassin",
+    name: "The Financial Assassin",
+    description: "Master your finances with these key saving goals",
+    financial: [
+        { name: "ETF Savings", target: 10000, current: 2000, level: 1 },
+        { name: "Cash Savings", target: 3000, current: 1000, level: 1 },
+        { name: "House Savings", target: 20000, current: 2000, level: 1 }
+    ],
+    skills: []
+};
+
 // Handle tab switching
 const tabs = document.querySelectorAll('.auth-tab');
 tabs.forEach(tab => {
@@ -138,8 +151,17 @@ async function loadTemplates() {
             return;
         }
         
+        // Ensure financialAssassin template is properly set
+        let templates = [...data.templates];
+        
+        // Replace the Financial Assassin template with our hardcoded version
+        const financialAssassinIndex = templates.findIndex(t => t.id === 'financial_assassin');
+        if (financialAssassinIndex >= 0) {
+            templates[financialAssassinIndex] = financialAssassinTemplate;
+        }
+        
         // Pre-process all templates at once
-        const processedTemplates = data.templates.map(generateTemplateHTML);
+        const processedTemplates = templates.map(generateTemplateHTML);
         
         // Batch DOM updates with document fragment
         const fragment = document.createDocumentFragment();
