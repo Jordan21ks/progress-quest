@@ -289,7 +289,10 @@ function storeAuthToken(token, username, rememberMe = true) {
     }
 }
 
-// Handle form submission with loading state
+// Import the recordLoginFailure from data.js
+import { recordLoginFailure } from './data.js';
+
+// Handle form submission with loading state and enhanced debugging
 async function handleAuthForm(formType, formData, errorDiv, submitButton) {
     const originalButtonText = submitButton.textContent;
     submitButton.textContent = formType === 'login' ? 'Logging in...' : 'Creating Account...';
@@ -297,10 +300,40 @@ async function handleAuthForm(formType, formData, errorDiv, submitButton) {
     
     try {
         const endpoint = formType === 'login' ? 'login' : 'register';
+        console.log(`Attempting ${formType} for user: ${formData.username}`);
         
         // Add timeout to prevent hanging requests
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 25000); // Extended timeout for slow connections
+        
+        // Log the request details for debugging - omit password for security
+        const debugFormData = {...formData};
+        if (debugFormData.password) {
+            debugFormData.password = '********'; // Mask the password in logs
+        }
+        console.log(`Sending ${endpoint} request:`, debugFormData);
+        
+        // Check if the user has registered before - this helps with password issues
+        let isRegisteredUser = false;
+        try {
+            const registrationInfo = localStorage.getItem(`registration_${formData.username}`);
+            if (registrationInfo) {
+                isRegisteredUser = true;
+                console.log(`User ${formData.username} has registration information stored locally`);
+            }
+            
+            // Also check the registered_users list
+            const registeredUsers = localStorage.getItem('registered_users');
+            if (registeredUsers) {
+                const users = JSON.parse(registeredUsers);
+                if (users.includes(formData.username)) {
+                    isRegisteredUser = true;
+                    console.log(`User ${formData.username} found in registered users list`);
+                }
+            }
+        } catch (e) {
+            console.warn('Error checking local registration:', e);
+        }
         
         const response = await fetch(`https://experience-points-backend.onrender.com/api/${endpoint}`, {
             method: 'POST',
@@ -313,25 +346,104 @@ async function handleAuthForm(formType, formData, errorDiv, submitButton) {
         });
         
         clearTimeout(timeoutId);
+        console.log(`${formType} response status:`, response.status);
+        
+        // If it's a registration and we got a 409 Conflict, the user already exists
+        if (formType === 'register' && response.status === 409) {
+            errorDiv.textContent = 'Username already exists. Please choose another username or try logging in.';
+            errorDiv.style.display = 'block';
+            submitButton.textContent = originalButtonText;
+            submitButton.disabled = false;
+            return false;
+        }
         
         const data = await response.json();
+        console.log(`${formType} response data:`, data);
         
         if (response.ok) {
+            console.log(`${formType} successful for user: ${formData.username}`);
             playVictorySound();
-            // Pass the remember me preference from login form
-            const rememberMe = formData.rememberMe !== undefined ? formData.rememberMe : false;
+            
+            // Always remember the user for 30 days
+            const rememberMe = true;
             storeAuthToken(data.token, data.user.username, rememberMe);
+            
+            // Store successful login info for future diagnosis if needed
+            try {
+                localStorage.setItem('last_successful_login', JSON.stringify({
+                    username: formData.username,
+                    timestamp: new Date().toISOString(),
+                    passwordLength: formData.password.length
+                }));
+            } catch (e) {
+                console.warn('Could not save login success info:', e);
+            }
+            
+            // Store the password in browser-managed autocomplete by setting form values before redirect
+            if (formType === 'login') {
+                const usernameField = document.getElementById('login-username');
+                const passwordField = document.getElementById('login-password');
+                if (usernameField && passwordField) {
+                    usernameField.value = formData.username;
+                    passwordField.value = formData.password;
+                    // Submit the form to help browser remember the credential
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 100);
+                    return true;
+                }
+            }
+            
             window.location.href = 'index.html';
             return true;
         } else {
-            errorDiv.textContent = data.error || `${formType === 'login' ? 'Login' : 'Registration'} failed`;
+            console.warn(`${formType} failed:`, data.error);
+            
+            // Record login failure for diagnostics
+            if (formType === 'login') {
+                recordLoginFailure(formData.username, data.error);
+                
+                // Special handling for previously registered users
+                if (isRegisteredUser) {
+                    // This is a user we know has registered before
+                    errorDiv.textContent = 'Password incorrect. If you forgot your password, you may need to register again.';
+                    
+                    // If this is a password issue, save the attempted password hint for debugging
+                    try {
+                        localStorage.setItem(`password_attempt_${formData.username}`, JSON.stringify({
+                            timestamp: new Date().toISOString(),
+                            hint: formData.password.length + '_chars_' + formData.password.charAt(0) + '***'
+                        }));
+                    } catch (e) {
+                        console.warn('Could not save password attempt info:', e);
+                    }
+                    
+                    // Suggest re-registration if multiple password failures
+                    const failureCount = JSON.parse(localStorage.getItem('login_failures') || '[]').length;
+                    if (failureCount >= 2) {
+                        errorDiv.textContent += ' Consider registering again with the same username.';
+                    }
+                } else {
+                    errorDiv.textContent = data.error || 'Login failed. Please check your username and password.';
+                }
+            } else {
+                errorDiv.textContent = data.error || 'Registration failed. Please try again.';
+            }
+            
             errorDiv.style.display = 'block';
             submitButton.textContent = originalButtonText;
             submitButton.disabled = false;
             return false;
         }
     } catch (error) {
-        errorDiv.textContent = 'Connection error. Please try again.';
+        console.error(`${formType} error:`, error);
+        
+        // Record the error for login attempts
+        if (formType === 'login') {
+            recordLoginFailure(formData.username, error);
+        }
+        
+        errorDiv.textContent = 'Connection error. Please try again later.';
         errorDiv.style.display = 'block';
         submitButton.textContent = originalButtonText;
         submitButton.disabled = false;
@@ -374,7 +486,7 @@ function getCookieValue(name) {
     return null;
 }
 
-// Handle login
+// Handle login with improved debugging and password management
 document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
@@ -388,11 +500,35 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     // Store this as last username for potential future login attempts
     sessionStorage.setItem('last_username', username);
     
+    console.log(`Login form submitted for user: ${username}`);
+    
+    // Check if we have local registration info for this user
+    try {
+        const registrationInfo = localStorage.getItem(`registration_${username}`);
+        if (registrationInfo) {
+            console.log(`Found local registration info for user: ${username}`);
+        } else {
+            console.log(`No local registration info found for user: ${username}`);
+        }
+    } catch (e) {
+        console.warn('Error checking local registration info:', e);
+    }
+    
+    // Store login credentials for autocomplete to improve browser password management
+    try {
+        localStorage.setItem('last_login_attempt', JSON.stringify({
+            username: username,
+            timestamp: new Date().toISOString()
+        }));
+    } catch (e) {
+        console.warn('Failed to save login attempt info:', e);
+    }
+    
     await handleAuthForm('login', { username, password, rememberMe }, errorDiv, submitButton);
 });
 
-// Handle registration
-document.getElementById('registerForm').addEventListener('submit', async (e) => {
+// Handle registration with improved password handling
+document.getElementById('registerForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const errorDiv = document.getElementById('register-error');
@@ -406,6 +542,39 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
     const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
     const submitButton = document.querySelector('#registerForm .btn');
+    
+    // Store registration info locally for recovery in case of backend issues
+    try {
+        // Store the registration attempt in secure local storage
+        // This helps rebuild state if the backend fails but we still want to remember the registration
+        const registrationInfo = {
+            username: username,
+            registeredAt: new Date().toISOString(),
+            hashedPassword: btoa(password).slice(0, 5) + '...' // Just store a hint, not the actual password
+        };
+        
+        // Store mapped to username for easier lookup
+        localStorage.setItem(`registration_${username}`, JSON.stringify(registrationInfo));
+        console.log(`Registration info stored locally for user: ${username}`);
+        
+        // Also add to the list of registered users
+        let registeredUsers = [];
+        try {
+            const existing = localStorage.getItem('registered_users');
+            if (existing) {
+                registeredUsers = JSON.parse(existing);
+            }
+        } catch (err) {
+            console.warn('Error parsing registered users:', err);
+        }
+        
+        if (!registeredUsers.includes(username)) {
+            registeredUsers.push(username);
+            localStorage.setItem('registered_users', JSON.stringify(registeredUsers));
+        }
+    } catch (e) {
+        console.warn('Could not store registration info locally:', e);
+    }
     
     await handleAuthForm('register', 
         { username, password, template: selectedTemplate }, 

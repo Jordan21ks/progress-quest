@@ -123,13 +123,37 @@ async function checkAuth() {
         clearTimeout(timeoutId);
         
         if (response.status === 401) {
-            // Clear all storage mechanisms
+            console.warn('Authentication check failed (401 Unauthorized)');
+            
+            // Don't clear the registered_users or registered_user entries
+            // as we want to remember registrations across token expirations
+            
+            // Clear auth tokens but preserve registration record
+            const registeredUsers = localStorage.getItem('registered_users');
+            
+            // Clear auth tokens
             localStorage.removeItem('token');
             localStorage.removeItem('username');
             sessionStorage.removeItem('token');
             sessionStorage.removeItem('username');
             document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
             document.cookie = 'username=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+            
+            // Check if the username exists in our records
+            // to help handle the expired token more gracefully
+            if (registeredUsers) {
+                try {
+                    const users = JSON.parse(registeredUsers);
+                    if (users.includes(username)) {
+                        console.log('User was previously registered, redirecting to login for token refresh');
+                        // Preserve the username in session to prefill the login form
+                        sessionStorage.setItem('last_username', username);
+                    }
+                } catch (e) {
+                    console.error('Error parsing registered users:', e);
+                }
+            }
+            
             window.location.href = 'login.html';
             return false;
         }

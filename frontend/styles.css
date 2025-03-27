@@ -519,33 +519,7 @@ h1 {
   z-index: 5; /* Ensure it's above the footer but below potential modals */
 }
 
-/* Remember me checkbox styling */
-.remember-me-container {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  font-size: 0.7em;
-  color: var(--ff-text);
-  user-select: none;
-}
-
-.remember-me-container input[type="checkbox"] {
-  width: auto;
-  min-height: auto;
-  cursor: pointer;
-  margin: 0;
-  height: 14px;
-  width: 14px;
-}
-
-.remember-me-container label {
-  cursor: pointer;
-  opacity: 0.8;
-  display: inline;
-  margin: 0;
-  font-size: 0.8em;
-}
+/* Authentication styling */
 
 .auth-tabs {
   display: flex;

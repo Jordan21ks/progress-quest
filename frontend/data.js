@@ -45,6 +45,9 @@ export function formatCurrency(value) {
 }
 
 // Auth helper functions
+// Track failed login attempts to help diagnose password issues
+let failedLoginAttempts = 0;
+
 export function getToken() {
     // Try localStorage first - most reliable for persistence
     let token = localStorage.getItem('token');
@@ -87,7 +90,46 @@ export function getToken() {
         }
     }
     
+    // Reset failed login counter if we have a valid token
+    if (token) {
+        failedLoginAttempts = 0;
+    }
+    
     return token;
+}
+
+// Track login failure for diagnostic purposes
+export function recordLoginFailure(username, error) {
+    failedLoginAttempts++;
+    
+    // Store failure details for debugging
+    try {
+        const failureLog = JSON.parse(localStorage.getItem('login_failures') || '[]');
+        failureLog.push({
+            username,
+            timestamp: new Date().toISOString(),
+            error: error?.toString() || 'Unknown error',
+            attemptCount: failedLoginAttempts
+        });
+        
+        // Keep only the last 5 failures to avoid storage overflow
+        while (failureLog.length > 5) {
+            failureLog.shift();
+        }
+        
+        localStorage.setItem('login_failures', JSON.stringify(failureLog));
+        console.warn(`Login failure #${failedLoginAttempts} recorded for user: ${username}`);
+        
+        // If we have multiple failures, try some recovery steps
+        if (failedLoginAttempts >= 2) {
+            console.warn('Multiple login failures detected, attempting recovery...');
+            // Clear any potentially corrupted tokens
+            sessionStorage.removeItem('token');
+            // But keep the username for login form
+        }
+    } catch (e) {
+        console.error('Failed to record login failure:', e);
+    }
 }
 
 export function getUsername() {
