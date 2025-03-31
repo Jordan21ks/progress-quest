@@ -90,12 +90,53 @@ export function getToken() {
         }
     }
     
-    // Reset failed login counter if we have a valid token
+        // Reset failed login counter if we have a valid token
     if (token) {
         failedLoginAttempts = 0;
     }
     
     return token;
+}
+
+// Save user data to permanent local storage
+export function saveUserDataLocally(skills, financialGoals) {
+    try {
+        const username = getUsername();
+        if (!username) return false;
+        
+        const userData = {
+            username,
+            skills,
+            financialGoals,
+            savedAt: new Date().toISOString()
+        };
+        
+        // Save to permanent storage with username key
+        localStorage.setItem(`user_data_${username}`, JSON.stringify(userData));
+        console.log(`Saved user data locally for ${username}`);
+        return true;
+    } catch (e) {
+        console.error('Failed to save user data locally:', e);
+        return false;
+    }
+}
+
+// Load user data from permanent local storage
+export function loadUserDataLocally() {
+    try {
+        const username = getUsername();
+        if (!username) return null;
+        
+        const userDataJson = localStorage.getItem(`user_data_${username}`);
+        if (!userDataJson) return null;
+        
+        const userData = JSON.parse(userDataJson);
+        console.log(`Loaded local data for ${username} from ${userData.savedAt}`);
+        return userData;
+    } catch (e) {
+        console.error('Failed to load user data from local storage:', e);
+        return null;
+    }
 }
 
 // Track login failure for diagnostic purposes

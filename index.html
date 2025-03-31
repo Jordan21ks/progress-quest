@@ -139,6 +139,41 @@
     <!-- Load scripts in correct order -->
     <script type="module">
         import { handleFormSubmit, hideModal, deleteGoal } from './script.js';
+        import { loadUserDataLocally } from './data.js';
+        
+        // Attempt immediate data restoration from permanent storage
+        // This happens even before the main script loads to ensure data is visible instantly
+        (async function restoreUserData() {
+            try {
+                const userData = loadUserDataLocally();
+                if (userData && userData.skills && userData.financialGoals) {
+                    // Make user data globally available
+                    window.skills = userData.skills;
+                    window.financialGoals = userData.financialGoals;
+                    
+                    // Render immediately
+                    const skillsContainer = document.getElementById('skills-container');
+                    const financialContainer = document.getElementById('financial-container');
+                    
+                    if (skillsContainer && userData.skills.length > 0) {
+                        // Just show loading placeholders for now
+                        skillsContainer.innerHTML = userData.skills.map(skill => 
+                            `<div class="progress-container loading" data-name="${skill.name}"><div class="progress-label">${skill.name}</div></div>`
+                        ).join('');
+                    }
+                    
+                    if (financialContainer && userData.financialGoals.length > 0) {
+                        financialContainer.innerHTML = userData.financialGoals.map(goal => 
+                            `<div class="progress-container loading" data-name="${goal.name}"><div class="progress-label">${goal.name}</div></div>`
+                        ).join('');
+                    }
+                    
+                    console.log('Restored data placeholders from permanent storage');
+                }
+            } catch (e) {
+                console.warn('Failed to pre-load user data:', e);
+            }
+        })();
         
         // Set up form handlers
         document.getElementById('goalForm').addEventListener('submit', handleFormSubmit);
@@ -169,5 +204,43 @@
     </script>
     <script src="script.js" type="module"></script>
     <script src="pwa.js"></script>
+    
+    <!-- Offline support notification -->
+    <script>
+        // Show offline/online status
+        function updateOnlineStatus() {
+            const statusIndicator = document.createElement('div');
+            statusIndicator.id = 'connection-status';
+            
+            if (navigator.onLine) {
+                statusIndicator.textContent = '🟢 Online';
+                statusIndicator.className = 'online';
+                setTimeout(() => {
+                    if (statusIndicator.parentNode) {
+                        statusIndicator.parentNode.removeChild(statusIndicator);
+                    }
+                }, 3000);
+            } else {
+                statusIndicator.textContent = '🔴 Offline - Using Saved Data';
+                statusIndicator.className = 'offline';
+            }
+            
+            // Remove existing indicator if any
+            const existingIndicator = document.getElementById('connection-status');
+            if (existingIndicator) {
+                existingIndicator.parentNode.removeChild(existingIndicator);
+            }
+            
+            document.body.appendChild(statusIndicator);
+        }
+
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        
+        // Check initial status
+        if (!navigator.onLine) {
+            setTimeout(updateOnlineStatus, 1000); // Show offline message after a delay
+        }
+    </script>
 </body>
 </html>

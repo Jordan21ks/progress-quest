@@ -177,57 +177,139 @@ async function checkAuth() {
     }
 }
 
-// Load goals from API with improved error handling and offline support
+// Check if we have cached data to display
+function hasCachedData() {
+    const cachedGoals = localStorage.getItem('cached_goals');
+    if (!cachedGoals) return false;
+    
+    try {
+        const parsedGoals = JSON.parse(cachedGoals);
+        const hasSkills = Array.isArray(parsedGoals.skills) && parsedGoals.skills.length > 0;
+        const hasFinancial = Array.isArray(parsedGoals.financial) && parsedGoals.financial.length > 0;
+        return hasSkills || hasFinancial;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Load goals from cache immediately for faster display
+function loadCachedGoals() {
+    console.log('Attempting to load goals from cache...');
+    const cachedGoals = localStorage.getItem('cached_goals');
+    if (!cachedGoals) {
+        console.log('No cached goals found');
+        return false;
+    }
+    
+    try {
+        const parsedGoals = JSON.parse(cachedGoals);
+        window.skills = parsedGoals.skills || [];
+        window.financialGoals = parsedGoals.financial || [];
+        console.log('Loaded from cache:', 
+            `${window.skills.length} skills, ${window.financialGoals.length} financial goals`);
+        
+        // Display a subtle indicator that we're using cached data
+        const cacheTimestamp = localStorage.getItem('goals_cache_timestamp');
+        if (cacheTimestamp) {
+            const cacheDate = new Date(parseInt(cacheTimestamp));
+            console.log('Cache timestamp:', cacheDate.toLocaleString());
+        }
+        
+        // Render what we have from cache
+        renderAll();
+        return true;
+    } catch (e) {
+        console.warn('Failed to parse cached goals:', e);
+        return false;
+    }
+}
+
+// Show offline notice when we can't connect to server
+function showOfflineNotice() {
+    const notice = document.createElement('div');
+    notice.className = 'offline-notice';
+    notice.innerHTML = `
+        <div class="offline-content">
+            <h3>⚠️ Offline Mode</h3>
+            <p>You're viewing cached data. Some features may be limited.</p>
+            <button class="btn">Reconnect</button>
+        </div>
+    `;
+    document.body.appendChild(notice);
+    
+    notice.querySelector('.btn').addEventListener('click', () => {
+        location.reload();
+    });
+}
+
+// Load goals from API with enhanced error handling and offline support
 export async function loadGoals() {
+    console.log('Loading goals from server...');
+    
+    // First try loading from permanent username-based storage
+    try {
+        // Dynamic import to avoid circular dependencies
+        const dataModule = await import('./data.js');
+        const userData = dataModule.loadUserDataLocally();
+        
+        if (userData && userData.skills && userData.financialGoals) {
+            console.log('Loaded user data from permanent storage');
+            window.skills = userData.skills;
+            window.financialGoals = userData.financialGoals;
+            renderAll();
+        }
+    } catch (e) {
+        console.warn('Failed to load data from permanent storage:', e);
+    }
+    
     try {
         const token = getToken();
         if (!token) {
+            console.warn('No auth token found, redirecting to login');
             window.location.href = 'login.html';
             return;
         }
         
-        // Try to load from local storage cache first for immediate display
-        const cachedGoals = localStorage.getItem('cached_goals');
-        if (cachedGoals) {
-            try {
-                const parsedGoals = JSON.parse(cachedGoals);
-                const cacheTimestamp = localStorage.getItem('goals_cache_timestamp');
-                const now = Date.now();
-                
-                // If cache is less than 5 minutes old, use it immediately while fetching fresh data
-                if (cacheTimestamp && (now - parseInt(cacheTimestamp)) < 300000) {
-                    console.log('Using cached goals while fetching updates');
-                    window.skills = parsedGoals.skills || [];
-                    window.financialGoals = parsedGoals.financial || [];
-                    renderAll();
-                }
-            } catch (e) {
-                console.warn('Failed to parse cached goals:', e);
-                // Continue to fetch from server
-            }
+        // Try loading from session cache if needed
+        if (!window.skills?.length && !window.financialGoals?.length) {
+            loadCachedGoals();
         }
         
         // Add timeout to prevent hanging requests
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
         
+        console.log('Fetching goals from API...');
         const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
             headers: {
                 'Authorization': `Bearer ${token}`
             },
+            credentials: 'include', // Include cookies
             signal: controller.signal
         });
         
         clearTimeout(timeoutId);
+        console.log('API response status:', response.status);
         
         if (response.status === 401) {
-            // Clear all storage mechanisms
+            console.warn('Authentication failed (401 Unauthorized)');
+            
+            // Don't clear all storage - this causes the app to forget registrations
+            // Just remove the token but keep the username and registration info
+            const username = getUsername(); // Save username before clearing tokens
+            const registeredUsers = localStorage.getItem('registered_users');
+            
+            // Clear only auth tokens
             localStorage.removeItem('token');
-            localStorage.removeItem('username');
             sessionStorage.removeItem('token');
-            sessionStorage.removeItem('username');
             document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-            document.cookie = 'username=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+            
+            // Remember the username for login form
+            if (username) {
+                sessionStorage.setItem('last_username', username);
+                console.log('Saved username for login form:', username);
+            }
+            
             window.location.href = 'login.html';
             return;
         }
@@ -235,20 +317,12 @@ export async function loadGoals() {
         const data = await response.json();
         
         if (!response.ok) {
+            console.warn('Server responded with error:', data.error || 'Unknown error');
             // Try to load from cache if server request failed
-            const cachedGoals = localStorage.getItem('cached_goals');
-            if (cachedGoals) {
-                try {
-                    const parsedGoals = JSON.parse(cachedGoals);
-                    window.skills = parsedGoals.skills || [];
-                    window.financialGoals = parsedGoals.financial || [];
-                    renderAll();
-                    
-                    console.warn('Using cached data due to server error');
-                    return; // Skip the error since we loaded from cache
-                } catch (e) {
-                    console.error('Failed to parse cached goals:', e);
-                }
+            if (loadCachedGoals()) {
+                console.log('Successfully loaded data from cache as fallback');
+                showOfflineNotice();
+                return; // Skip the error since we loaded from cache
             }
             
             throw new Error(data.error || 'Failed to load your goals');
@@ -258,14 +332,21 @@ export async function loadGoals() {
         window.skills = Array.isArray(data.skills) ? data.skills : [];
         window.financialGoals = Array.isArray(data.financial) ? data.financial : [];
         
-        // Cache the goals data for offline access
+        // Cache the goals data for offline access - both in session cache and permanent storage
         try {
             const goalsCache = {
                 skills: window.skills,
                 financial: window.financialGoals,
             };
+            
+            // Session cache for quick access
             localStorage.setItem('cached_goals', JSON.stringify(goalsCache));
             localStorage.setItem('goals_cache_timestamp', Date.now().toString());
+            
+            // Permanent storage tied to username
+            import('./data.js').then(module => {
+                module.saveUserDataLocally(window.skills, window.financialGoals);
+            });
         } catch (e) {
             console.warn('Failed to cache goals:', e);
         }
@@ -922,19 +1003,79 @@ export async function handleFormSubmit(event) {
     }
 }
 
-// Handle logout with improved cleanup
-function logout() {
-    // Clear all storage mechanisms
-    ['token', 'username', 'auth_timestamp'].forEach(item => {
-        localStorage.removeItem(item);
-        sessionStorage.removeItem(item);
-    });
+// Handle logout with improved persistence of registration data
+async function logout() {
+    console.log('Logging out...');
+    const token = getToken();
+    const username = getUsername();
     
-    // Clear cookies by setting expiration in the past
+    // Cache user's data before logout for quick restoration on next login
+    try {
+        // Save current skills and goals to permanent storage
+        if (window.skills?.length > 0 || window.financialGoals?.length > 0) {
+            // Dynamic import to avoid circular dependencies
+            const dataModule = await import('./data.js');
+            dataModule.saveUserDataLocally(window.skills || [], window.financialGoals || []);
+            console.log('Saved user data to permanent storage before logout');
+        }
+        
+        // Store the username we're logging out from for auto-login
+        if (username) {
+            localStorage.setItem('last_logged_out_user', username);
+            sessionStorage.setItem('last_username', username); // For login form auto-fill
+            console.log('Remembered username for next login:', username);
+            
+            // Save registration status
+            let registeredUsers = [];
+            try {
+                const existing = localStorage.getItem('registered_users');
+                if (existing) {
+                    registeredUsers = JSON.parse(existing);
+                }
+            } catch (e) { /* ignore parsing errors */ }
+            
+            if (!registeredUsers.includes(username)) {
+                registeredUsers.push(username);
+                localStorage.setItem('registered_users', JSON.stringify(registeredUsers));
+                console.log('Added to registered users list:', username);
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to prepare cache for logout:', e);
+    }
+    
+    // Send logout request to API
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // Short timeout for logout
+        
+        console.log('Sending logout request to server');
+        await fetch('https://experience-points-backend.onrender.com/api/logout', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            credentials: 'include',
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+    } catch (error) {
+        console.warn('Error during logout API call:', error);
+        // Continue with client-side logout regardless of API response
+    }
+    
+    // Clear only authentication tokens, NOT registration data
+    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-    document.cookie = 'username=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
     
-    // Redirect to login page
+    // For security, remove user data from window objects
+    window.skills = [];
+    window.financialGoals = [];
+    
+    console.log('Logout complete, redirecting to login page');
+    // Redirect to login
     window.location.href = 'login.html';
 }
 
@@ -975,16 +1116,58 @@ function showFunFact(name, fact, isFinancial = false) {
 window.skills = [];
 window.financialGoals = [];
 
-// Initialize
+// Initialize with improved data persistence
 document.addEventListener('DOMContentLoaded', async () => {
-    // Check auth first
-    if (!await checkAuth()) {
-        window.location.href = 'login.html';
-        return;
-    }
+    console.log('App initializing...');
     
-    // Load goals
-    await loadGoals();
+    // Always try to load cached data first for immediate display
+    loadCachedGoals();
+    
+    // Check auth in parallel but don't block initial rendering
+    const authPromise = checkAuth();
+    
+    // Display loading indicator
+    const loadingIndicator = document.createElement('div');
+    loadingIndicator.id = 'loading-indicator';
+    loadingIndicator.innerHTML = `
+        <div class="loading-spinner"></div>
+        <p>Loading your progress data...</p>
+    `;
+    loadingIndicator.style.position = 'fixed';
+    loadingIndicator.style.top = '50%';
+    loadingIndicator.style.left = '50%';
+    loadingIndicator.style.transform = 'translate(-50%, -50%)';
+    loadingIndicator.style.background = 'rgba(0, 0, 0, 0.8)';
+    loadingIndicator.style.padding = '20px';
+    loadingIndicator.style.borderRadius = '10px';
+    loadingIndicator.style.zIndex = '1000';
+    document.body.appendChild(loadingIndicator);
+
+    try {
+        // Wait for auth check to complete
+        if (!await authPromise) {
+            console.log('Auth check failed, redirecting to login');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        // Auth successful, now load goals from server
+        await loadGoals();
+    } catch (error) {
+        console.error('Failed to initialize app:', error);
+        // If we can't load from server but have cached data, show offline notice
+        if (hasCachedData()) {
+            showOfflineNotice();
+        } else {
+            window.location.href = 'login.html';
+            return;
+        }
+    } finally {
+        // Remove loading indicator
+        if (loadingIndicator && document.body.contains(loadingIndicator)) {
+            loadingIndicator.remove();
+        }
+    }
     
     // Set up form handlers
     const goalForm = document.getElementById('goalForm');
@@ -992,12 +1175,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         goalForm.addEventListener('submit', handleFormSubmit);
     }
     
-    // Set up logout handler
+    // Set up logout handler with improved data persistence
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            logout();
+            
+            // Confirm logout to prevent accidental data loss
+            if (confirm('Are you sure you want to log out? Your progress will be saved for when you return.')) {
+                logout();
+            }
         });
     }
     
@@ -1034,4 +1221,63 @@ document.addEventListener('DOMContentLoaded', async () => {
             hideModal();
         }
     });
+    
+    // Add proper logout function that preserves registration and user data
+    async function logout() {
+        console.log('Logging out...');
+        const token = getToken();
+        const username = getUsername();
+        
+        // Cache user's data before logout for quick restoration on next login
+        try {
+            // Save current skills and goals to permanent storage
+            if (window.skills?.length > 0 || window.financialGoals?.length > 0) {
+                const dataModule = await import('./data.js');
+                dataModule.saveUserDataLocally(window.skills || [], window.financialGoals || []);
+                console.log('Saved user data to permanent storage before logout');
+            }
+            
+            // Store the username we're logging out from
+            if (username) {
+                localStorage.setItem('last_logged_out_user', username);
+                sessionStorage.setItem('last_username', username); // For login form auto-fill
+                console.log('Remembered username for next login:', username);
+            }
+        } catch (e) {
+            console.warn('Failed to prepare cache for logout:', e);
+        }
+        
+        // Send logout request to API
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // Short timeout for logout
+            
+            await fetch('https://experience-points-backend.onrender.com/api/logout', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                credentials: 'include',
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+        } catch (error) {
+            console.warn('Error during logout API call:', error);
+            // Continue with client-side logout regardless of API response
+        }
+        
+        // Clear only authentication tokens, NOT registration data
+        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
+        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
+        
+        // For security, remove user data from window objects
+        window.skills = [];
+        window.financialGoals = [];
+        
+        console.log('Logout complete, redirecting to login page');
+        // Redirect to login
+        window.location.href = 'login.html';
+    }
 });
