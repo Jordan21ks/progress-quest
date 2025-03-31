@@ -338,19 +338,53 @@ async function handleAuthForm(formType, formData, errorDiv, submitButton) {
         // Check if the user has registered before - this helps with password issues
         let isRegisteredUser = false;
         try {
-            const registrationInfo = localStorage.getItem(`registration_${formData.username}`);
-            if (registrationInfo) {
-                isRegisteredUser = true;
-                console.log(`User ${formData.username} has registration information stored locally`);
+            // Check multiple sources for registration information
+            const sources = [
+                // Direct registration info
+                { key: `registration_${formData.username}`, type: 'direct' },
+                // Username variations with different casing
+                { key: `registration_${formData.username.toLowerCase()}`, type: 'lowercase' },
+                { key: `registration_${formData.username.toUpperCase()}`, type: 'uppercase' },
+                // Registration with first letter capitalized
+                { key: `registration_${formData.username.charAt(0).toUpperCase() + formData.username.slice(1)}`, type: 'capitalized' }
+            ];
+            
+            // Try all sources
+            for (const source of sources) {
+                const info = localStorage.getItem(source.key);
+                if (info) {
+                    isRegisteredUser = true;
+                    console.log(`User ${formData.username} has registration information stored locally (${source.type})`);
+                    break;
+                }
             }
             
             // Also check the registered_users list
-            const registeredUsers = localStorage.getItem('registered_users');
-            if (registeredUsers) {
-                const users = JSON.parse(registeredUsers);
-                if (users.includes(formData.username)) {
-                    isRegisteredUser = true;
-                    console.log(`User ${formData.username} found in registered users list`);
+            if (!isRegisteredUser) {
+                const registeredUsers = localStorage.getItem('registered_users');
+                if (registeredUsers) {
+                    try {
+                        const users = JSON.parse(registeredUsers);
+                        // Case insensitive check
+                        if (users.some(u => u.toLowerCase() === formData.username.toLowerCase())) {
+                            isRegisteredUser = true;
+                            console.log(`User ${formData.username} found in registered users list (case-insensitive)`);
+                        }
+                    } catch (parseError) {
+                        console.warn('Error parsing registered users:', parseError);
+                    }
+                }
+            }
+            
+            // Final fallback: check all localStorage keys for username patterns
+            if (!isRegisteredUser) {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.includes(formData.username)) {
+                        isRegisteredUser = true;
+                        console.log(`User ${formData.username} found in key pattern: ${key}`);
+                        break;
+                    }
                 }
             }
         } catch (e) {
@@ -388,15 +422,38 @@ async function handleAuthForm(formType, formData, errorDiv, submitButton) {
             
             // Always remember the user for 30 days
             const rememberMe = true;
-            storeAuthToken(data.token, data.user.username, rememberMe);
+            const isEmergency = false;
+            
+            // Store the token with the normalized username for reliability
+            // This makes it less likely to have username case-sensitivity issues
+            storeAuthToken(data.token, data.user.username, rememberMe, isEmergency);
+            
+            // Also store with lowercase variant for fallback
+            if (data.user.username.toLowerCase() !== data.user.username) {
+                localStorage.setItem(`username_variants_${data.user.username.toLowerCase()}`, data.user.username);
+            }
             
             // Store successful login info for future diagnosis if needed
             try {
-                localStorage.setItem('last_successful_login', JSON.stringify({
+                // Store robust login success information
+                const loginSuccess = {
                     username: formData.username,
+                    normalizedUsername: formData.username.toLowerCase(),
                     timestamp: new Date().toISOString(),
-                    passwordLength: formData.password.length
-                }));
+                    passwordLength: formData.password.length,
+                    // Store the first and last character as hint for future password recovery
+                    passwordHint: formData.password.length > 2 ? 
+                        `${formData.password.charAt(0)}...${formData.password.charAt(formData.password.length-1)}` : 
+                        '***',
+                    device: navigator.userAgent,
+                    // Store whether we had previous activity data
+                    hadPriorData: localStorage.getItem(`user_data_${formData.username}`) !== null
+                };
+                
+                localStorage.setItem('last_successful_login', JSON.stringify(loginSuccess));
+                
+                // Also store under username-specific key for multiple user support
+                localStorage.setItem(`login_success_${formData.username}`, JSON.stringify(loginSuccess));
             } catch (e) {
                 console.warn('Could not save login success info:', e);
             }

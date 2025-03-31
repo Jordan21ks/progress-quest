@@ -98,37 +98,107 @@ export function getToken() {
     return token;
 }
 
-// Save user data to permanent local storage
-export function saveUserDataLocally(skills, financialGoals) {
+// Save user data to permanent local storage with enhanced backup
+export function saveUserDataLocally(skills, financialGoals, specificUsername) {
     try {
-        const username = getUsername();
+        // Use provided username or get from auth
+        const username = specificUsername || getUsername();
         if (!username) return false;
         
         const userData = {
             username,
             skills,
             financialGoals,
-            savedAt: new Date().toISOString()
+            savedAt: new Date().toISOString(),
+            version: 2  // Track data version for migrations
         };
         
-        // Save to permanent storage with username key
+        // First save to primary storage
         localStorage.setItem(`user_data_${username}`, JSON.stringify(userData));
-        console.log(`Saved user data locally for ${username}`);
+        
+        // Create additional backup with timestamp for redundancy
+        const backupKey = `user_data_backup_${username}_${Date.now()}`;
+        localStorage.setItem(backupKey, JSON.stringify(userData));
+        
+        // Keep only the 3 most recent backups to avoid storage overflow
+        try {
+            const backupKeys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith(`user_data_backup_${username}_`)) {
+                    backupKeys.push(key);
+                }
+            }
+            
+            // Sort by timestamp (newest first) and remove old backups
+            backupKeys.sort().reverse();
+            if (backupKeys.length > 3) {
+                for (let i = 3; i < backupKeys.length; i++) {
+                    localStorage.removeItem(backupKeys[i]);
+                }
+            }
+        } catch (backupError) {
+            console.warn('Error managing data backups:', backupError);
+        }
+        
+        console.log(`Saved user data locally for ${username} with backup`);
         return true;
     } catch (e) {
         console.error('Failed to save user data locally:', e);
+        
+        // Try with a simplified payload as last resort
+        try {
+            const emergencyData = {
+                username: specificUsername || getUsername(),
+                skills: skills?.slice(0, 20) || [], // Limit data size
+                financialGoals: financialGoals?.slice(0, 5) || [],
+                savedAt: new Date().toISOString(),
+                isEmergencySave: true
+            };
+            localStorage.setItem(`emergency_data_${emergencyData.username}`, 
+                                JSON.stringify(emergencyData));
+            console.log('Saved emergency fallback data');
+        } catch (emergencyError) {
+            console.error('Complete failure saving any data:', emergencyError);
+        }
+        
         return false;
     }
 }
 
-// Load user data from permanent local storage
-export function loadUserDataLocally() {
+// Load user data from permanent local storage with support for specific username
+export function loadUserDataLocally(specificUsername) {
     try {
-        const username = getUsername();
+        // Use provided username or get from auth
+        const username = specificUsername || getUsername();
         if (!username) return null;
         
-        const userDataJson = localStorage.getItem(`user_data_${username}`);
-        if (!userDataJson) return null;
+        // Try localStorage first
+        let userDataJson = localStorage.getItem(`user_data_${username}`);
+        
+        // If no data in localStorage, check for any other stored variants of the username
+        // This helps with case sensitivity issues and minor typos
+        if (!userDataJson) {
+            // Check all localStorage keys for similar username patterns
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('user_data_')) {
+                    const storedUsername = key.replace('user_data_', '');
+                    // Check for case-insensitive match
+                    if (storedUsername.toLowerCase() === username.toLowerCase()) {
+                        userDataJson = localStorage.getItem(key);
+                        console.log(`Found data with slight username variation: ${storedUsername}`);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Still no data found
+        if (!userDataJson) {
+            console.log(`No local data found for user: ${username}`);
+            return null;
+        }
         
         const userData = JSON.parse(userDataJson);
         console.log(`Loaded local data for ${username} from ${userData.savedAt}`);
