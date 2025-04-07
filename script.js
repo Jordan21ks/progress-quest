@@ -97,14 +97,40 @@ const FINANCIAL_FACTS = [
 ];
 
 // Data storage
-// Check authentication using shared helper functions
+// Check authentication using shared helper functions with bypass for offline mode
 async function checkAuth() {
-    // Get token using the centralized helper function
-    const token = await getToken();
+    // Special case - if coming from registration with mode=offline parameter, skip token check
+    if (window.location.search.includes('mode=offline')) {
+        console.log('Offline mode detected, bypassing token check');
+        // Remove the query parameter to avoid infinite bypass
+        if (window.history && window.history.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('mode');
+            window.history.replaceState({}, document.title, url.toString());
+        }
+        
+        // Initialize the sync system anyway
+        Sync.setupAutoSync();
+        return true;
+    }
     
-    // Check if user is authenticated
-    if (!token) {
-        console.log('No authentication token found, redirecting to login');
+    // Check all possible token storage locations directly
+    const directToken = localStorage.getItem('access_token') || 
+                      sessionStorage.getItem('access_token') ||
+                      localStorage.getItem('token') ||
+                      sessionStorage.getItem('token');
+                      
+    // Also get username as a secondary authentication factor
+    const username = localStorage.getItem('username') || sessionStorage.getItem('username');
+    
+    console.log('Auth check:', directToken ? 'Token found' : 'No token', username ? 'Username found' : 'No username');
+    
+    // Try the centralized helper function as a backup
+    const token = directToken || await getToken();
+    
+    // Accept either token or username as proof of authentication
+    if (!token && !username) {
+        console.log('No authentication found, redirecting to login');
         window.location.href = 'login.html';
         return false;
     }
