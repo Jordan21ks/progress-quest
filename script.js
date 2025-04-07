@@ -1,5 +1,7 @@
 import { playLevelUpSound, playVictorySound } from './sounds.js';
-import { skillEmojis, formatCurrency, getToken, getUsername } from './data.js';
+import { skillEmojis, formatCurrency, getToken, getUsername, storeCurrentUser } from './data.js';
+import * as Storage from './storage.js';
+import * as Sync from './sync.js';
 
 // Fun facts and progression milestones for skills
 const SKILL_FACTS = {
@@ -97,152 +99,192 @@ const FINANCIAL_FACTS = [
 // Data storage
 // Check authentication using shared helper functions
 async function checkAuth() {
-    // Get token and username using helper functions
-    const token = getToken();
-    const username = getUsername();
+    // Get token using the centralized helper function
+    const token = await getToken();
     
-    // If we don't have valid credentials, redirect to login
-    if (!token || !username) {
+    // Check if user is authenticated
+    if (!token) {
+        console.log('No authentication token found, redirecting to login');
         window.location.href = 'login.html';
         return false;
     }
     
-    try {
-        // Add timeout to prevent hanging requests
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-        
-        const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            credentials: 'same-origin', // Include cookies in the request
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-        if (response.status === 401) {
-            console.warn('Authentication check failed (401 Unauthorized)');
-            
-            // Don't clear the registered_users or registered_user entries
-            // as we want to remember registrations across token expirations
-            
-            // Clear auth tokens but preserve registration record
-            const registeredUsers = localStorage.getItem('registered_users');
-            
-            // Clear auth tokens
-            localStorage.removeItem('token');
-            localStorage.removeItem('username');
-            sessionStorage.removeItem('token');
-            sessionStorage.removeItem('username');
-            document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-            document.cookie = 'username=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-            
-            // Check if the username exists in our records
-            // to help handle the expired token more gracefully
-            if (registeredUsers) {
-                try {
-                    const users = JSON.parse(registeredUsers);
-                    if (users.includes(username)) {
-                        console.log('User was previously registered, redirecting to login for token refresh');
-                        // Preserve the username in session to prefill the login form
-                        sessionStorage.setItem('last_username', username);
-                    }
-                } catch (e) {
-                    console.error('Error parsing registered users:', e);
-                }
-            }
-            
-            window.location.href = 'login.html';
-            return false;
-        }
-        
-        // Don't try to re-save tokens during auth check, as this can cause race conditions
-        // Just verify they exist - they're already stored properly during login
-        // Instead, we'll just update the UI with the username
-        
-        document.querySelector('.user-info').textContent = `👤 ${username}`;
-        return true;
-    } catch (error) {
-        console.error('Auth check failed:', error);
-        // Only redirect if it's an AbortError (timeout) or the token is definitely invalid
-        // This prevents race conditions where we aggressively redirect for network glitches
-        if (error.name === 'AbortError' || !token) {
-            window.location.href = 'login.html';
-            return false;
-        }
-        // For other errors (like network issues), allow the page to keep trying
-        return false;
-    }
+    // Initialize the sync system
+    Sync.setupAutoSync();
+    
+    return true;
 }
 
 // Check if we have cached data to display
-function hasCachedData() {
-    const cachedGoals = localStorage.getItem('cached_goals');
-    if (!cachedGoals) return false;
-    
+async function hasCachedData() {
     try {
-        const parsedGoals = JSON.parse(cachedGoals);
-        const hasSkills = Array.isArray(parsedGoals.skills) && parsedGoals.skills.length > 0;
-        const hasFinancial = Array.isArray(parsedGoals.financial) && parsedGoals.financial.length > 0;
-        return hasSkills || hasFinancial;
+        const username = getUsername();
+        if (!username) return false;
+        
+        // Use our new IndexedDB storage
+        const { skills, financial } = await Storage.getGoals(username);
+        
+        return (skills && skills.length > 0) || (financial && financial.length > 0);
     } catch (e) {
+        console.warn('Error checking cached data:', e);
         return false;
     }
 }
 
 // Load goals from cache immediately for faster display
-function loadCachedGoals() {
-    console.log('Attempting to load goals from cache...');
-    const cachedGoals = localStorage.getItem('cached_goals');
-    if (!cachedGoals) {
-        console.log('No cached goals found');
-        return false;
-    }
-    
+async function loadCachedGoals() {
     try {
-        const parsedGoals = JSON.parse(cachedGoals);
-        window.skills = parsedGoals.skills || [];
-        window.financialGoals = parsedGoals.financial || [];
-        console.log('Loaded from cache:', 
-            `${window.skills.length} skills, ${window.financialGoals.length} financial goals`);
-        
-        // Display a subtle indicator that we're using cached data
-        const cacheTimestamp = localStorage.getItem('goals_cache_timestamp');
-        if (cacheTimestamp) {
-            const cacheDate = new Date(parseInt(cacheTimestamp));
-            console.log('Cache timestamp:', cacheDate.toLocaleString());
+        const username = getUsername();
+        if (!username) {
+            window.skills = [];
+            window.financialGoals = [];
+            return false;
         }
         
-        // Render what we have from cache
-        renderAll();
-        return true;
-    } catch (e) {
-        console.warn('Failed to parse cached goals:', e);
+        // Use our new IndexedDB storage
+        const { skills, financial } = await Storage.getGoals(username);
+        
+        // Update window objects for compatibility with existing code
+        window.skills = skills || [];
+        window.financialGoals = financial || [];
+        
+        if (window.skills.length > 0 || window.financialGoals.length > 0) {
+            renderAll();
+            console.log('Displayed cached data:', 
+                        `${window.skills.length} skills, ${window.financialGoals.length} financial goals`);
+        }
+        
+        return (window.skills.length > 0 || window.financialGoals.length > 0);
+    } catch (error) {
+        console.error('Error loading cached goals:', error);
+        window.skills = [];
+        window.financialGoals = [];
         return false;
     }
 }
+
+// Variables to track event listener registration
+let onlineHandlerRegistered = false;
+let offlineHandlerRegistered = false;
 
 // Show offline notice when we can't connect to server
 function showOfflineNotice() {
-    const notice = document.createElement('div');
-    notice.className = 'offline-notice';
-    notice.innerHTML = `
-        <div class="offline-content">
-            <h3>⚠️ Offline Mode</h3>
-            <p>You're viewing cached data. Some features may be limited.</p>
-            <button class="btn">Reconnect</button>
-        </div>
-    `;
-    document.body.appendChild(notice);
+    const offlineNotice = document.getElementById('offline-notice');
+    if (!offlineNotice) return;
     
-    notice.querySelector('.btn').addEventListener('click', () => {
-        location.reload();
-    });
+    // Clear existing event listeners to prevent duplicates
+    const oldSyncButton = document.getElementById('sync-now-btn');
+    const oldCloseButton = document.getElementById('close-offline-notice');
+    const oldRetryButton = document.getElementById('retry-sync-btn');
+    
+    if (oldSyncButton) {
+        const newSyncButton = oldSyncButton.cloneNode(true);
+        oldSyncButton.parentNode.replaceChild(newSyncButton, oldSyncButton);
+    }
+    
+    if (oldCloseButton) {
+        const newCloseButton = oldCloseButton.cloneNode(true);
+        oldCloseButton.parentNode.replaceChild(newCloseButton, oldCloseButton);
+    }
+    
+    if (oldRetryButton) {
+        const newRetryButton = oldRetryButton.cloneNode(true);
+        oldRetryButton.parentNode.replaceChild(newRetryButton, oldRetryButton);
+    }
+    
+    // Set appropriate content based on online status
+    if (!navigator.onLine) {
+        offlineNotice.style.display = 'block';
+        offlineNotice.innerHTML = `
+            <p>📶 You're currently offline. Your progress is safely stored and will automatically sync when you reconnect.</p>
+            <button id="sync-now-btn" style="display:none;">Sync Now</button>
+            <button id="close-offline-notice">Dismiss</button>
+        `;
+        
+        document.getElementById('close-offline-notice')?.addEventListener('click', () => {
+            offlineNotice.style.display = 'none';
+        });
+    } else {
+        // Online but show sync button
+        offlineNotice.style.display = 'block';
+        offlineNotice.innerHTML = `
+            <p>✅ You're online. Any offline changes will automatically sync.</p>
+            <button id="sync-now-btn">Sync Now</button>
+            <button id="close-offline-notice">Dismiss</button>
+        `;
+        
+        document.getElementById('sync-now-btn')?.addEventListener('click', async () => {
+            try {
+                // Show syncing message without recreating buttons
+                const messageEl = offlineNotice.querySelector('p');
+                if (messageEl) messageEl.textContent = 'Syncing data...';
+                
+                // Disable buttons during sync
+                const syncBtn = document.getElementById('sync-now-btn');
+                const closeBtn = document.getElementById('close-offline-notice');
+                if (syncBtn) syncBtn.disabled = true;
+                if (closeBtn) closeBtn.disabled = true;
+                
+                const result = await Sync.forceSynchronization();
+                
+                if (result.success) {
+                    offlineNotice.innerHTML = `
+                        <p>✅ Sync successful! Updated ${result.updated || 0} items, created ${result.created || 0} items.</p>
+                        <button id="close-offline-notice">Dismiss</button>
+                    `;
+                    // Reload the data
+                    await loadCachedGoals();
+                } else {
+                    offlineNotice.innerHTML = `
+                        <p>⚠️ Sync incomplete: ${result.error || 'Unknown error'}</p>
+                        <button id="retry-sync-btn">Retry</button>
+                        <button id="close-offline-notice">Dismiss</button>
+                    `;
+                    
+                    document.getElementById('retry-sync-btn')?.addEventListener('click', () => {
+                        showOfflineNotice(); // Restart the sync process
+                    });
+                }
+                
+                document.getElementById('close-offline-notice')?.addEventListener('click', () => {
+                    offlineNotice.style.display = 'none';
+                });
+            } catch (e) {
+                console.error('Error during manual sync:', e);
+                offlineNotice.innerHTML = `
+                    <p>⚠️ Sync error: ${e.message}</p>
+                    <button id="close-offline-notice">Dismiss</button>
+                `;
+                
+                document.getElementById('close-offline-notice')?.addEventListener('click', () => {
+                    offlineNotice.style.display = 'none';
+                });
+            }
+        });
+        
+        document.getElementById('close-offline-notice')?.addEventListener('click', () => {
+            offlineNotice.style.display = 'none';
+        });
+    }
+    
+    // Only register the event listeners once
+    if (!onlineHandlerRegistered) {
+        window.addEventListener('online', () => {
+            showOfflineNotice();
+            // Try to sync when coming back online
+            if (navigator.onLine) {
+                Sync.synchronizeData();
+            }
+        });
+        onlineHandlerRegistered = true;
+    }
+    
+    if (!offlineHandlerRegistered) {
+        window.addEventListener('offline', showOfflineNotice);
+        offlineHandlerRegistered = true;
+    }
 }
 
-// Load goals from API with enhanced error handling and offline support
 export async function loadGoals() {
     console.log('Loading goals from server...');
     
@@ -250,37 +292,36 @@ export async function loadGoals() {
     try {
         // Dynamic import to avoid circular dependencies
         const dataModule = await import('./data.js');
-        const userData = dataModule.loadUserDataLocally();
-        
-        if (userData && userData.skills && userData.financialGoals) {
-            console.log('Loaded user data from permanent storage');
-            window.skills = userData.skills;
-            window.financialGoals = userData.financialGoals;
-            renderAll();
-        }
-    } catch (e) {
-        console.warn('Failed to load data from permanent storage:', e);
-    }
     
     try {
-        const token = getToken();
-        if (!token) {
-            console.warn('No auth token found, redirecting to login');
-            window.location.href = 'login.html';
-            return;
+        // First try to display cached data instantly for better user experience
+        const hasCached = await loadCachedGoals();
+        if (hasCached) {
+            console.log('Using cached data while fetching from server');
         }
         
-        // Try loading from session cache if needed
-        if (!window.skills?.length && !window.financialGoals?.length) {
-            loadCachedGoals();
+        // Only continue with server fetch if we're online
+        if (!navigator.onLine) {
+            console.log('Device is offline, using cached data only');
+            document.getElementById('loading-indicator')?.classList.remove('visible');
+            showOfflineNotice();
+            return hasCached;
+        }
+        
+        // Get token using the helper function
+        const token = await getToken();
+        
+        if (!token) {
+            console.error('No authentication token found');
+            window.location.href = 'login.html';
+            return false;
         }
         
         // Add timeout to prevent hanging requests
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+        const timeoutId = setTimeout(() => controller.abort(), 10000);
         
-        console.log('Fetching goals from API...');
-        const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
+        const response = await fetch('/api/goals', {
             headers: {
                 'Authorization': `Bearer ${token}`
             },
@@ -289,7 +330,6 @@ export async function loadGoals() {
         });
         
         clearTimeout(timeoutId);
-        console.log('API response status:', response.status);
         
         if (response.status === 401) {
             console.warn('Authentication failed (401 Unauthorized)');
@@ -367,12 +407,10 @@ export async function loadGoals() {
         if (!window.skills?.length && !window.financialGoals?.length) {
             alert(error.message || 'Failed to load goals');
         }
+    } finally {
+        document.getElementById('loading-indicator')?.classList.remove('visible');
     }
 }
-
-// Placeholder for imported sound functions
-
-// formatCurrency is now imported from data.js
 
 // Calculate level based on progress
 function calculateLevel(current, target) {
@@ -403,418 +441,6 @@ function showLevelUpMessage(item) {
     `;
     document.body.appendChild(message);
     setTimeout(() => message.remove(), 3000);
-}
-
-// Calculate time remaining and prediction
-function calculatePrediction(item) {
-    const history = item.history;
-    
-    // Need at least 2 history entries
-    if (!history || history.length < 2) return null;
-
-    // Calculate daily rate based on history
-    const firstEntry = history[0];
-    const lastEntry = history[history.length - 1];
-    
-    // Calculate days between first and last entry
-    const daysDiff = (new Date(lastEntry.date) - new Date(firstEntry.date)) / (1000 * 60 * 60 * 24);
-    
-    // Need at least 1 day difference for meaningful prediction
-    if (daysDiff < 1) return null;
-    
-    // Also need value change for meaningful prediction
-    const valueChange = lastEntry.value - firstEntry.value;
-    if (valueChange <= 0) return null;
-
-    // Calculate progress rate (value change per day)
-    const progressRate = valueChange / daysDiff;
-    
-    // Calculate remaining days needed
-    const remaining = item.target - item.current;
-    const daysNeeded = remaining / progressRate;
-    
-    // Calculate predicted completion date
-    const predictedDate = new Date();
-    predictedDate.setDate(predictedDate.getDate() + daysNeeded);
-
-    return predictedDate;
-}
-
-// Format date for display
-function formatDate(date) {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric'
-    });
-}
-
-// Calculate days until deadline
-function getDaysUntilDeadline(deadline) {
-    const now = new Date();
-    const deadlineDate = new Date(deadline);
-    const days = Math.ceil((deadlineDate - now) / (1000 * 60 * 60 * 24));
-    return days;
-}
-
-// Get timeline status
-function getTimelineStatus(item) {
-    const prediction = calculatePrediction(item);
-    
-    // Check if the goal has been achieved
-    if (isMastered(item.current, item.target)) {
-        return { status: 'completed', color: 'var(--ff-gold)' };
-    }
-    
-    // Check if we have enough data for prediction
-    if (!prediction) {
-        return { status: 'no-data', color: 'var(--ff-text)' };
-    }
-    
-    // If no deadline, just show 'in progress' status
-    // SIMPLE DEADLINE LOGIC: Always show ANY deadline
-    // A deadline is valid if it simply exists and is not empty
-    const hasDeadline = item.deadline && 
-                       item.deadline !== null && 
-                       item.deadline !== '';
-    
-    console.log('Deadline for ' + item.name + ':', item.deadline, 'Will show:', hasDeadline);
-    if (!hasDeadline) {
-        return { status: 'in-progress', color: 'var(--ff-crystal)' };
-    }
-    
-    // If deadline exists, calculate status based on prediction vs deadline
-    const daysLeft = getDaysUntilDeadline(item.deadline);
-    const daysUntilPredicted = Math.ceil((prediction - new Date()) / (1000 * 60 * 60 * 24));
-    
-    if (daysUntilPredicted > daysLeft) {
-        return { status: 'behind', color: '#ff4444' };
-    } else if (daysUntilPredicted > daysLeft * 0.8) {
-        return { status: 'at-risk', color: '#ffaa44' };
-    } else {
-        return { status: 'on-track', color: '#44ff44' };
-    }
-}
-
-// Helper function to generate timeline HTML
-function generateTimelineHTML(item, hasDeadline, hasSufficientData, prediction, timelineStatus, daysLeft) {
-    if (!hasDeadline && (!hasSufficientData || prediction === null)) {
-        return '';
-    }
-    
-    return `
-        <div class="timeline-info">
-            ${hasDeadline ? `<span>⏰ Deadline: ${formatDate(item.deadline)} (${daysLeft} days)</span>` : ''}
-            ${(hasSufficientData && prediction !== null) ? `
-                <span style="color: ${timelineStatus.color}">🎯 Predicted: ${formatDate(prediction)}</span>
-                <span style="color: ${timelineStatus.color}">📊 Status: ${timelineStatus.status.replace('-', ' ').toUpperCase()}</span>
-            ` : ''}
-        </div>
-    `;
-}
-
-// Render progress bars with FF-style
-function renderProgressBar(container, item, isFinancial = false) {
-    // Calculate progress percentage
-    const percentage = (item.current / item.target) * 100;
-    const mastered = isMastered(item.current, item.target);
-    
-    // Get previous progress if element exists
-    const existingElement = container.querySelector(`[data-goal-id="${item.id}"]`);
-    const previousPercentage = existingElement ? 
-        (existingElement.querySelector('.progress-fill')?.style.width || '0%') :
-        '0%';
-    
-    const div = document.createElement('div');
-    div.className = 'progress-container' + (mastered ? ' mastered' : '');
-    div.dataset.goalId = item.id;
-    
-    const value = isFinancial ? 
-        `${formatCurrency(item.current)}/${formatCurrency(item.target)}` :
-        `${item.current}/${item.target} hrs`;
-
-    const timelineStatus = getTimelineStatus(item);
-    const daysLeft = getDaysUntilDeadline(item.deadline);
-    const prediction = calculatePrediction(item);
-
-    const emoji = !isFinancial ? skillEmojis[item.name] || '🎯' : '💰';
-    // Parse previous percentage for milestone detection
-    const prevPercentage = parseFloat(previousPercentage) || 0;
-
-    // Check if we have sufficient data for prediction and status
-    // We now have much stricter requirements:
-    // 1. Must have at least 2 history entries
-    // 2. Entries must be at least 1 day apart
-    // 3. Must show real progress between entries
-    // 4. Must be able to actually calculate a meaningful prediction
-    
-    // First check if we have enough history entries
-    const hasHistory = item.history && Array.isArray(item.history) && item.history.length >= 2;
-    let hasSufficientData = false;
-    
-    if (hasHistory) {
-        // Calculate time difference between first and last entry
-        const firstEntry = item.history[0];
-        const lastEntry = item.history[item.history.length - 1];
-        
-        // Make sure dates exist
-        if (firstEntry.date && lastEntry.date) {
-            const daysDiff = (new Date(lastEntry.date) - new Date(firstEntry.date)) / (1000 * 60 * 60 * 24);
-            const valueChange = lastEntry.value - firstEntry.value;
-            
-            // Now require at least 1 full day AND positive progress
-            hasSufficientData = daysDiff >= 1 && valueChange > 0;
-        }
-    }
-    
-    // SIMPLE DEADLINE LOGIC: Always show ANY deadline
-    // A deadline is valid if it simply exists and is not empty
-    const hasDeadline = item.deadline && 
-                       item.deadline !== null && 
-                       item.deadline !== '';
-    
-    console.log('Deadline for ' + item.name + ':', item.deadline, 'Will show:', hasDeadline);
-    
-    // Only include prediction and status if we have a valid prediction - not just valid history entries
-    const hasPrediction = prediction !== null && prediction !== undefined;
-    
-    div.innerHTML = `
-        <div class="progress-label">
-            <span>${emoji} ${item.name}<span class="level-display">(Lv. ${item.level})</span></span>
-            <span>${value}</span>
-        </div>
-        <div class="progress-bar">
-            <div class="progress-fill" style="width: ${Math.min(percentage, 100)}%"></div>
-        </div>
-        ${generateTimelineHTML(item, hasDeadline, hasSufficientData, prediction, timelineStatus, daysLeft)}
-    `;
-
-    // Play celebration sound if reaching 100%, but only when updating
-    if (percentage >= 100 && prevPercentage < 100 && window.justUpdated && !window.suppressFunFacts) {
-        playVictorySound().catch(e => console.warn('Could not play victory sound:', e));
-        showFunFact(item.name, 'Congratulations! You\'ve mastered this skill! 🏆', 100, isFinancial);
-    }
-
-    // Show fun fact at certain milestones (25%, 50%, 75%, 100%) but only when updating
-    const milestones = [25, 50, 75];
-    const crossedMilestone = milestones.find(m => percentage >= m && prevPercentage < m);
-
-    if (crossedMilestone && window.justUpdated && !window.suppressFunFacts) {
-        let fact;
-        if (isFinancial) {
-            fact = FINANCIAL_FACTS[Math.floor(Math.random() * FINANCIAL_FACTS.length)];
-        } else {
-            const facts = SKILL_FACTS[item.name] || GENERIC_SKILL_FACTS;
-            fact = facts[Math.floor(Math.random() * facts.length)];
-        }
-        showFunFact(item.name, fact, crossedMilestone, isFinancial);
-        // Play level up sound for non-100% milestones
-        playLevelUpSound().catch(e => console.warn('Could not play level up sound:', e));
-    }
-
-    // Add click handler to edit
-    div.addEventListener('click', (event) => {
-        showEditForm(item, isFinancial ? 'financial' : 'skill', event);
-    });
-
-    container.appendChild(div);
-}
-
-// Render all progress bars without showing fun facts
-function renderAll() {
-    const skillsContainer = document.getElementById('skills-container');
-    const financialContainer = document.getElementById('financial-container');
-    
-    skillsContainer.innerHTML = '';
-    financialContainer.innerHTML = '';
-    
-    // Suppress fun facts when rendering from login or refresh
-    window.suppressFunFacts = true;
-    
-    window.skills?.forEach(skill => renderProgressBar(skillsContainer, skill));
-    window.financialGoals?.forEach(goal => renderProgressBar(financialContainer, goal, true));
-    
-    // Reset the flag after rendering
-    window.suppressFunFacts = false;
-}
-
-// Show add/edit form
-export function showAddForm(type) {
-    console.log('showAddForm called with type:', type);
-    const modal = document.getElementById('goalModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const typeInput = document.getElementById('goal-type');
-    const nameInput = document.getElementById('goal-name');
-    const targetInput = document.getElementById('goal-target');
-    const currentInput = document.getElementById('goal-current');
-    const deadlineInput = document.getElementById('goal-deadline');
-    const deleteButton = document.getElementById('delete-button');
-    const goalForm = document.getElementById('goalForm');
-    
-    // Clear any existing goal ID when adding a new goal
-    goalForm.dataset.goalId = '';
-    
-    modalTitle.textContent = type === 'skill' ? '🗡️ New Skill' : '💰 New Financial Goal';
-    typeInput.value = type;
-    nameInput.value = '';
-    targetInput.value = '';
-    currentInput.value = '';
-    deadlineInput.value = '';
-    
-    // Enable name field for new items
-    nameInput.readOnly = false;
-    
-    // Hide delete button for new items
-    if (deleteButton) {
-        deleteButton.style.display = 'none';
-    }
-    
-    modal.style.display = 'block';
-    nameInput.focus();
-}
-
-// skillEmojis now imported from data.js
-
-// Show edit form
-function showEditForm(item, type, event) {
-    const modal = document.getElementById('goalModal');
-    const modalTitle = document.getElementById('modalTitle');
-    const typeInput = document.getElementById('goal-type');
-    const nameInput = document.getElementById('goal-name');
-    const targetInput = document.getElementById('goal-target');
-    const currentInput = document.getElementById('goal-current');
-    const deadlineInput = document.getElementById('goal-deadline');
-    const deleteButton = document.getElementById('delete-button');
-    const goalForm = document.getElementById('goalForm');
-    
-    modalTitle.textContent = `Edit ${item.name}`;
-    typeInput.value = type;
-    nameInput.value = item.name;
-    targetInput.value = item.target;
-    currentInput.value = item.current;
-    deadlineInput.value = item.deadline;
-    
-    // Store the goal ID in the form for editing
-    goalForm.dataset.goalId = item.id;
-    
-    // Name is editable in edit mode
-    nameInput.readOnly = false;
-    
-    // Show delete button for edits and set the item ID
-    if (deleteButton) {
-        deleteButton.style.display = 'block';
-        deleteButton.dataset.id = item.id;
-        deleteButton.dataset.type = type;
-    }
-    
-    // Position modal based on screen size
-    const rect = event ? event.currentTarget.getBoundingClientRect() : { top: window.innerHeight / 2 };
-    modal.style.position = 'fixed';
-    
-    if (window.innerWidth <= 768) {
-        // Center modal on mobile
-        modal.style.left = '50%';
-        modal.style.top = '45%';
-        modal.style.transform = 'translate(-50%, -50%)';
-    } else {
-        // Position on the left side for desktop
-        modal.style.left = '20px';
-        modal.style.top = `${Math.max(20, Math.min(rect.top, window.innerHeight - 400))}px`;
-        modal.style.transform = 'none';
-    }
-    
-    modal.style.display = 'block';
-}
-
-// Hide modal
-export function hideModal() {
-    document.getElementById('goalModal').style.display = 'none';
-}
-
-// Delete a goal
-export async function deleteGoal(goalId, type) {
-    if (!confirm('Are you sure you want to delete this item? This action cannot be undone.')) {
-        return;
-    }
-    
-    try {
-        console.log(`Deleting goal with ID: ${goalId}`);
-        
-        // Try local server first, then fall back to production
-        let apiUrl = `http://localhost:5001/api/goals/${goalId}`;
-        let response;
-        
-        try {
-            console.log('Attempting to delete using local development server...');
-            response = await fetch(apiUrl, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    'Accept': 'application/json'
-                },
-                mode: 'cors'
-            });
-            
-            // If local server gives an error, fall back to production
-            if (!response.ok) {
-                console.log(`Local server returned error: ${response.status}. Falling back to production.`);
-                throw new Error('Local server error');
-            }
-        } catch (err) {
-            console.log('Using production API instead:', err.message);
-            // Use timeout for delete request
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000);
-            
-            apiUrl = `https://experience-points-backend.onrender.com/api/goals/${goalId}`;
-            response = await fetch(apiUrl, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${getToken()}`,
-                    'Accept': 'application/json'
-                },
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.error || 'Failed to delete item');
-            }
-        }
-        
-        // If we got here, the request was successful with either local or production server
-        
-        // Remove from local arrays
-        const list = type === 'skill' ? window.skills : window.financialGoals;
-        const index = list.findIndex(item => item.id === parseInt(goalId));
-        if (index > -1) {
-            list.splice(index, 1);
-        }
-        
-        // Update UI with fun facts enabled for updates
-        window.justUpdated = true;
-        renderAll();
-        window.justUpdated = false;
-        hideModal();
-        
-    } catch (error) {
-        console.error('Error deleting goal:', error);
-        alert(error.message || 'Failed to delete item. Please try again.');
-    }
-}
-
-// Add progress history entry
-function addHistoryEntry(item, value) {
-    const today = new Date().toISOString().split('T')[0];
-    item.history.push({ date: today, value });
-    
-    // Keep only last 30 entries
-    if (item.history.length > 30) {
-        item.history.shift();
-    }
 }
 
 // Handle form submission
@@ -865,53 +491,75 @@ export async function handleFormSubmit(event) {
             oldValue = list[existingIndex].current || 0;
         }
         
-        // Use timeout to prevent hanging requests
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
+        // Always save locally first (offline-first approach)
+        // This ensures the data is saved even if we're offline
+        const now = new Date().toISOString();
+        const itemForLocalStorage = {
+            ...requestData,
+            // Add basic metadata for history
+            history: existingIndex >= 0 && list[existingIndex].history ? 
+                     [...list[existingIndex].history, { date: now, value: current }] :
+                     [{ date: now, value: current }]
+        };
         
-        // Send to backend using getToken helper
-        const response = await fetch('https://experience-points-backend.onrender.com/api/goals', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${getToken()}`
-            },
-            body: JSON.stringify(requestData),
-            signal: controller.signal
-        });
+        // Save to IndexedDB
+        await Sync.saveItemLocally(itemForLocalStorage, type);
         
-        clearTimeout(timeoutId);
+        // Try to send to server if we're online
+        let data = null;
         
-        const data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to save goal');
-        }
-        
-        // Update local state
-        if (existingIndex >= 0) {
-            // Record value change in history if actual progress was made
-            if (oldValue !== current) {
-                // Make sure history array exists
-                if (!Array.isArray(list[existingIndex].history)) {
-                    list[existingIndex].history = [];
-                }
+        if (navigator.onLine) {
+            try {
+                // Use timeout to prevent hanging requests
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
                 
-                // Add entry for this update
-                list[existingIndex].history.push({
-                    date: new Date().toISOString(),
-                    value: current
+                // Send to backend using getToken helper
+                const response = await fetch('/api/goals', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${await getToken()}`
+                    },
+                    body: JSON.stringify(requestData),
+                    signal: controller.signal
                 });
                 
-                // Print history to console for debugging
-                console.log(`Updated history for ${name}:`, list[existingIndex].history);
+                clearTimeout(timeoutId);
+                
+                data = await response.json();
+                
+                if (!response.ok) {
+                    console.warn('Server save failed but local save succeeded:', data.error);
+                    // Continue with local data since we already saved locally
+                } else {
+                    // Server save successful, update with server data
+                    console.log('Server save successful');
+                    
+                    // Store updated data from server in local storage
+                    const updatedItem = {
+                        ...data,
+                        history: itemForLocalStorage.history // Keep our history
+                    };
+                    await Sync.saveItemLocally(updatedItem, type);
+                }
+            } catch (serverError) {
+                console.warn('Server save failed, will sync later:', serverError);
+                // Continue with local data
+                data = { ...itemForLocalStorage, id: itemForLocalStorage.id || Date.now() };
             }
-            
-            // Update existing goal
+        } else {
+            console.log('Offline mode: Item saved locally, will sync when online');
+            // Use the local data with a temporary ID if needed
+            data = { ...itemForLocalStorage, id: itemForLocalStorage.id || Date.now() };
+        }
+        
+        // Update the window arrays for immediate UI update
+        if (existingIndex >= 0) {
+            // Update existing goal in the window array
             list[existingIndex] = {
                 ...data,
-                // Keep the updated history
-                history: list[existingIndex].history || []
+                history: data.history || []  // Use updated history
             };
             
             // Check for level up
@@ -927,7 +575,7 @@ export async function handleFormSubmit(event) {
                 if (newProgressLevel > oldProgressLevel) {
                     // Play sound and show animation
                     playLevelUpSound(); // No need to await or catch, function handles errors internally
-                    const container = document.querySelector(`.progress-container[data-name="${name}"]`);
+                    const container = document.querySelector(`.progress-container[data-name="${name}"`);
                     if (container) {
                         container.classList.add('level-up');
                         setTimeout(() => container.classList.remove('level-up'), 2000);
@@ -944,7 +592,7 @@ export async function handleFormSubmit(event) {
                     progressPercentage > milestone && oldProgressPercentage <= milestone
                 );
                 
-                if (hitMilestone) {
+                if (hitMilestone && navigator.onLine) {
                     // Fetch dynamic fact based on skill/goal name
                     const searchTerm = type === 'skill' ? 
                         `${name} activity benefits statistics research` : 
@@ -955,11 +603,11 @@ export async function handleFormSubmit(event) {
                         const factsController = new AbortController();
                         const factsTimeoutId = setTimeout(() => factsController.abort(), 8000); // Shorter timeout for facts
                         
-                        const response = await fetch('https://experience-points-backend.onrender.com/api/facts', {
+                        const response = await fetch('/api/facts', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${getToken()}`
+                                'Authorization': `Bearer ${await getToken()}`
                             },
                             body: JSON.stringify({ searchTerm }),
                             signal: factsController.signal
@@ -972,34 +620,34 @@ export async function handleFormSubmit(event) {
                             showFunFact(name, fact);
                         }
                     } catch (error) {
-                        console.error('Failed to fetch fact:', error);
+                        console.warn('Failed to fetch fact, using local fallback:', error);
+                        // Use a local fallback fact if we can't reach the server
+                        const facts = SKILL_FACTS[name] || SKILL_FACTS['Default'];
+                        const fact = facts[Math.floor(Math.random() * facts.length)];
+                        showFunFact(name, fact);
                     }
                 }
             }
         } else {
-            // Add new goal with initial history entry
-            const now = new Date().toISOString();
+            // Add new goal to window array
             list.push({
                 ...data,
-                history: [
-                    { date: now, value: current }
-                ]
+                history: data.history || []
             });
-            
-            // Don't add an automatic second entry - we want at least 1 day
-            // difference before we start showing predictions
         }
         
         // Update display and close modal
-        renderAll();
         hideModal();
+        renderAll();
         
-        // Reset the update flag after rendering
+        // Reset the update flag
         window.justUpdated = false;
+        
+        return true;
     } catch (error) {
         console.error('Error saving goal:', error);
-        alert(error.message || 'Failed to save goal. Please try again.');
-        return;
+        alert(error.message || 'Failed to save goal');
+        return false;
     }
 }
 
@@ -1117,7 +765,7 @@ window.skills = [];
 window.financialGoals = [];
 
 // Initialize with improved data persistence
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('App initializing...');
     
     // Always try to load cached data first for immediate display
@@ -1223,41 +871,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
     
     // Add proper logout function that preserves registration and user data
-    async function logout() {
-        console.log('Logging out...');
-        const token = getToken();
-        const username = getUsername();
-        
-        // Cache user's data before logout for quick restoration on next login
-        try {
-            // Save current skills and goals to permanent storage
-            if (window.skills?.length > 0 || window.financialGoals?.length > 0) {
-                const dataModule = await import('./data.js');
-                dataModule.saveUserDataLocally(window.skills || [], window.financialGoals || []);
-                console.log('Saved user data to permanent storage before logout');
-            }
-            
-            // Store the username we're logging out from
-            if (username) {
-                localStorage.setItem('last_logged_out_user', username);
-                sessionStorage.setItem('last_username', username); // For login form auto-fill
-                console.log('Remembered username for next login:', username);
-            }
-        } catch (e) {
-            console.warn('Failed to prepare cache for logout:', e);
+async function logout() {
+    console.log('Logging out...');
+    const token = await getToken();
+    const username = getUsername();
+    
+    // Ensure all data is synced before logout
+    try {
+        if (navigator.onLine) {
+            console.log('Syncing data before logout...');
+            await Sync.forceSynchronization();
         }
-        
-        // Send logout request to API
+    } catch (syncError) {
+        console.warn('Failed to sync before logout:', syncError);
+    }
+    
+    // Send logout request to API
+    if (navigator.onLine && token) {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 5000); // Short timeout for logout
             
-            await fetch('https://experience-points-backend.onrender.com/api/logout', {
+            await fetch('/api/logout', {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`
                 },
-                credentials: 'include',
                 signal: controller.signal
             });
             
@@ -1266,18 +905,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.warn('Error during logout API call:', error);
             // Continue with client-side logout regardless of API response
         }
-        
-        // Clear only authentication tokens, NOT registration data
-        localStorage.removeItem('token');
-        sessionStorage.removeItem('token');
-        document.cookie = 'token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
-        
-        // For security, remove user data from window objects
-        window.skills = [];
-        window.financialGoals = [];
-        
-        console.log('Logout complete, redirecting to login page');
-        // Redirect to login
-        window.location.href = 'login.html';
     }
+    
+    // Clear authentication tokens
+    const dataModule = await import('./data.js');
+    dataModule.clearAuthTokens();
+    dataModule.clearCurrentUser();
+    
+    // For security, remove user data from window objects
+    window.skills = [];
+    window.financialGoals = [];
+    
+    console.log('Logout complete, redirecting to login page');
+    // Redirect to login
+    window.location.href = 'login.html';
+}
 });
