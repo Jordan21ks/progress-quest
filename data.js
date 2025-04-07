@@ -52,10 +52,13 @@ let failedLoginAttempts = 0;
 const TOKEN_REFRESH_THRESHOLD = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 export function getAuthTokens() {
+    // Check both new (access_token) and legacy (token) storage formats
     return {
-        accessToken: localStorage.getItem('access_token') || sessionStorage.getItem('access_token'),
+        accessToken: localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || 
+                    localStorage.getItem('token') || sessionStorage.getItem('token'),
         refreshToken: localStorage.getItem('refresh_token') || sessionStorage.getItem('refresh_token'),
-        tokenExpiry: localStorage.getItem('token_expiry') ? parseInt(localStorage.getItem('token_expiry')) : null
+        tokenExpiry: localStorage.getItem('token_expiry') ? parseInt(localStorage.getItem('token_expiry')) : 
+                    (localStorage.getItem('auth_timestamp') ? parseInt(localStorage.getItem('auth_timestamp')) + (24 * 60 * 60 * 1000) : null)
     };
 }
 
