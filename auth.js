@@ -204,7 +204,230 @@ async function loadTemplates() {
 let selectedTemplate = null;
 
 // Load templates when page loads
-document.addEventListener('DOMContentLoaded', loadTemplates);
+document.addEventListener('DOMContentLoaded', () => {
+    loadTemplates();
+    
+    // Set up form submission handlers
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+    
+    if (registerForm) {
+        registerForm.addEventListener('submit', handleRegister);
+    }
+});
+
+// Handle login form submission
+async function handleLogin(event) {
+    event.preventDefault();
+    
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errorDiv = document.getElementById('login-error');
+    const submitButton = event.submitter || document.querySelector('#loginForm button[type="submit"]');
+    
+    // Validation
+    if (!username || !password) {
+        errorDiv.textContent = 'Please enter both username and password';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Clear previous error
+    errorDiv.style.display = 'none';
+    
+    // Show loading state
+    const originalButtonText = submitButton.textContent;
+    submitButton.textContent = 'Logging in...';
+    submitButton.disabled = true;
+    
+    try {
+        // First check if we can do offline login
+        if (!navigator.onLine) {
+            console.log('Device is offline, attempting offline login');
+            const offlineSuccess = await attemptOfflineLogin(username, password, errorDiv, submitButton);
+            if (offlineSuccess) return;
+        }
+        
+        // Try online login
+        const response = await fetch('https://experience-points-backend.onrender.com/api/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Store tokens
+            storeAuthTokens(data.access_token, data.refresh_token, data.expires_in);
+            
+            // Store user info
+            storeCurrentUser(data.user);
+            
+            // Store credentials for offline login capability
+            await storeOfflineCredentials(username, password, data.user);
+            
+            // Show success and redirect
+            errorDiv.textContent = 'Login successful! Redirecting...';
+            errorDiv.style.display = 'block';
+            errorDiv.style.color = '#008000';
+            submitButton.textContent = 'Success!';
+            
+            // Play sound (optional)
+            playVictorySound();
+            
+            // Redirect
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1000);
+        } else {
+            // Handle login error
+            errorDiv.textContent = data.error || 'Invalid username or password';
+            errorDiv.style.display = 'block';
+            submitButton.textContent = originalButtonText;
+            submitButton.disabled = false;
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Connection error. Please try again.';
+        errorDiv.style.display = 'block';
+        submitButton.textContent = originalButtonText;
+        submitButton.disabled = false;
+        
+        // Try offline login as fallback
+        if (!navigator.onLine) {
+            console.log('Network error during login, trying offline mode');
+            await attemptOfflineLogin(username, password, errorDiv, submitButton);
+        }
+    }
+}
+
+// Handle registration form submission
+async function handleRegister(event) {
+    event.preventDefault();
+    
+    const username = document.getElementById('register-username').value.trim();
+    const password = document.getElementById('register-password').value;
+    const errorDiv = document.getElementById('register-error');
+    const submitButton = event.submitter || document.querySelector('#registerForm button[type="submit"]');
+    
+    // Get selected template
+    if (!selectedTemplate) {
+        errorDiv.textContent = 'Please select a template to get started';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Validation
+    if (!username || username.length < 3) {
+        errorDiv.textContent = 'Username must be at least 3 characters long';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    if (!password || password.length < 8) {
+        errorDiv.textContent = 'Password must be at least 8 characters long';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Enhanced password validation
+    const hasUppercase = /[A-Z]/.test(password);
+    const hasLowercase = /[a-z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
+    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+    
+    const categoriesSatisfied = [hasUppercase, hasLowercase, hasDigit, hasSpecial].filter(Boolean).length;
+    if (categoriesSatisfied < 3) {
+        errorDiv.textContent = 'Password must include at least 3 of: uppercase letters, lowercase letters, numbers, and special characters';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Clear previous error
+    errorDiv.style.display = 'none';
+    
+    // Show loading state
+    const originalButtonText = submitButton.textContent;
+    submitButton.textContent = 'Creating account...';
+    submitButton.disabled = true;
+    
+    try {
+        // Online registration
+        const registerData = {
+            username: username,
+            password: password,
+            template: selectedTemplate
+        };
+        
+        const response = await fetch('https://experience-points-backend.onrender.com/api/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(registerData)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            // Store auth tokens
+            storeAuthTokens(data.access_token, data.refresh_token, data.expires_in);
+            
+            // Store user info
+            storeCurrentUser(data.user);
+            
+            // Store credentials for offline use
+            await storeOfflineCredentials(username, password, data.user);
+            
+            // Show success
+            errorDiv.textContent = 'Account created successfully! Redirecting...';
+            errorDiv.style.display = 'block';
+            errorDiv.style.color = '#008000';
+            submitButton.textContent = 'Success!';
+            
+            // Play victory sound
+            playVictorySound();
+            
+            // Redirect to main page
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1500);
+        } else {
+            // Handle registration error
+            errorDiv.textContent = data.error || 'Registration failed. Please try again.';
+            errorDiv.style.display = 'block';
+            submitButton.textContent = originalButtonText;
+            submitButton.disabled = false;
+        }
+    } catch (error) {
+        console.error('Registration error:', error);
+        errorDiv.textContent = 'Connection error. Please try again later.';
+        errorDiv.style.display = 'block';
+        submitButton.textContent = originalButtonText;
+        submitButton.disabled = false;
+        
+        // If offline, store registration intent for later sync
+        if (!navigator.onLine) {
+            try {
+                // Save registration data for later sync
+                localStorage.setItem(`registration_intent_${username}`, JSON.stringify({
+                    username,
+                    passwordHash: await secureHashPassword(password),
+                    template: selectedTemplate,
+                    timestamp: new Date().toISOString()
+                }));
+                
+                errorDiv.textContent = 'You appear to be offline. Your registration will be completed when you reconnect.';
+                errorDiv.style.display = 'block';
+            } catch (e) {
+                console.error('Failed to store offline registration intent:', e);
+            }
+        }
+    }
+}
 
 // Centralized token storage function with emergency mode support
 function storeAuthToken(token, username, rememberMe = true, isEmergency = false) {

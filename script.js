@@ -414,7 +414,12 @@ export async function loadGoals() {
 
 // Calculate level based on progress
 function calculateLevel(current, target) {
-    return Math.floor((current / target) * 10) + 1;
+    try {
+        return Math.floor((current / target) * 10) + 1;
+    } catch (error) {
+        console.warn('Error calculating level:', error);
+        return 1; // Default to level 1 on error
+    }
 }
 
 // Check if skill is mastered (100% or more)
@@ -825,16 +830,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     
     // Set up logout handler with improved data persistence
     const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            
-            // Confirm logout to prevent accidental data loss
-            if (confirm('Are you sure you want to log out? Your progress will be saved for when you return.')) {
-                logout();
-            }
-        });
-    }
     
     // Set up add buttons
     const addSkillBtn = document.getElementById('addSkillBtn');
@@ -870,54 +865,62 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
     
-    // Add proper logout function that preserves registration and user data
-async function logout() {
-    console.log('Logging out...');
-    const token = await getToken();
-    const username = getUsername();
-    
-    // Ensure all data is synced before logout
-    try {
-        if (navigator.onLine) {
-            console.log('Syncing data before logout...');
-            await Sync.forceSynchronization();
-        }
-    } catch (syncError) {
-        console.warn('Failed to sync before logout:', syncError);
-    }
-    
-    // Send logout request to API
-    if (navigator.onLine && token) {
+    // Set up the logout function to preserve user data during logout
+    async function handleLogout() {
+        console.log('Logging out...');
+        const token = await getToken();
+        const username = getUsername();
+        
+        // Ensure all data is synced before logout
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000); // Short timeout for logout
-            
-            await fetch('/api/logout', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-        } catch (error) {
-            console.warn('Error during logout API call:', error);
-            // Continue with client-side logout regardless of API response
+            if (navigator.onLine) {
+                console.log('Syncing data before logout...');
+                await Sync.forceSynchronization();
+            }
+        } catch (syncError) {
+            console.warn('Failed to sync before logout:', syncError);
         }
+        
+        // Send logout request to API
+        if (navigator.onLine && token) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // Short timeout for logout
+                
+                await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    signal: controller.signal
+                });
+                
+                clearTimeout(timeoutId);
+            } catch (error) {
+                console.warn('Error during logout API call:', error);
+                // Continue with client-side logout regardless of API response
+            }
+        }
+        
+        // Clear authentication tokens
+        const dataModule = await import('./data.js');
+        dataModule.clearAuthTokens();
+        dataModule.clearCurrentUser();
+        
+        // For security, remove user data from window objects
+        window.skills = [];
+        window.financialGoals = [];
+        
+        console.log('Logout complete, redirecting to login page');
+        // Redirect to login
+        window.location.href = 'login.html';
     }
     
-    // Clear authentication tokens
-    const dataModule = await import('./data.js');
-    dataModule.clearAuthTokens();
-    dataModule.clearCurrentUser();
-    
-    // For security, remove user data from window objects
-    window.skills = [];
-    window.financialGoals = [];
-    
-    console.log('Logout complete, redirecting to login page');
-    // Redirect to login
-    window.location.href = 'login.html';
-}
+    // Attach the logout handler
+    logoutBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (confirm('Are you sure you want to log out?')) {
+            handleLogout();
+        }
+    });
 });
