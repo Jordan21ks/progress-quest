@@ -357,6 +357,7 @@ async function handleRegister(event) {
     submitButton.disabled = true;
     
     try {
+        console.log('Starting registration process...');
         // Online registration
         const registerData = {
             username: username,
@@ -364,13 +365,36 @@ async function handleRegister(event) {
             template: selectedTemplate
         };
         
+        console.log('Sending registration data:', { username, template: selectedTemplate });
+        
+        // Set up abort controller with longer timeout for registration
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
+        
         const response = await fetch('/api/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(registerData)
+            credentials: 'include', // Include cookies for CORS if needed
+            body: JSON.stringify(registerData),
+            signal: controller.signal
+        }).catch(error => {
+            console.error('Fetch error during registration:', error);
+            throw new Error('Network error during registration');
         });
         
-        const data = await response.json();
+        // Clear the timeout since the request completed
+        clearTimeout(timeoutId);
+        
+        console.log('Registration response received:', response.status, response.statusText);
+        
+        let data;
+        try {
+            data = await response.json();
+            console.log('Registration response data:', data);
+        } catch (jsonError) {
+            console.error('Error parsing registration response:', jsonError);
+            throw new Error('Invalid response from server');
+        }
         
         if (response.ok) {
             // Store auth tokens
