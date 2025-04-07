@@ -133,7 +133,7 @@ async function loadTemplates() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 10000); // Reduced timeout
         
-        const response = await fetch('https://experience-points-backend.onrender.com/api/templates', { 
+        const response = await fetch('/api/templates', { 
             headers: {'Accept': 'application/json'},
             signal: controller.signal,
             cache: 'default'
@@ -253,7 +253,7 @@ async function handleLogin(event) {
         }
         
         // Try online login
-        const response = await fetch('https://experience-points-backend.onrender.com/api/login', {
+        const response = await fetch('/api/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ username, password })
@@ -364,7 +364,7 @@ async function handleRegister(event) {
             template: selectedTemplate
         };
         
-        const response = await fetch('https://experience-points-backend.onrender.com/api/register', {
+        const response = await fetch('/api/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(registerData)

@@ -703,7 +703,7 @@ async function logout() {
         const timeoutId = setTimeout(() => controller.abort(), 5000); // Short timeout for logout
         
         console.log('Sending logout request to server');
-        await fetch('https://experience-points-backend.onrender.com/api/logout', {
+        await fetch('/api/logout', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`
