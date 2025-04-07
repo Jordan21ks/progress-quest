@@ -410,7 +410,19 @@ async function handleRegister(event) {
 
         // Generate a temporary authentication token
         const tempToken = 'offline.' + btoa(Date.now() + '.' + username);
-        storeAuthTokens(tempToken, null, 24 * 60 * 60); // 24 hour temp access
+        
+        // Save as access_token for compatibility with the main app
+        localStorage.setItem('access_token', tempToken);
+        sessionStorage.setItem('access_token', tempToken);
+        localStorage.setItem('token', tempToken); // Legacy format still used in some places
+        sessionStorage.setItem('token', tempToken); // Legacy format
+        localStorage.setItem('token_expiry', (Date.now() + (24 * 60 * 60 * 1000)).toString());
+        
+        // Set standard auth-related values to ensure login works
+        localStorage.setItem('username', username);
+        sessionStorage.setItem('username', username);
+        localStorage.setItem('auth_timestamp', Date.now().toString());
+        sessionStorage.setItem('auth_timestamp', Date.now().toString());
         
         // Store user data locally
         const userData = {
