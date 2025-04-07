@@ -307,6 +307,7 @@ async function handleLogin(event) {
 }
 async function handleRegister(event) {
     event.preventDefault();
+    console.log('Registration form submitted');
     
     // Access form elements
     const username = document.getElementById('register-username').value.trim();
@@ -314,50 +315,75 @@ async function handleRegister(event) {
     const confirmPassword = document.getElementById('register-confirm-password').value;
     const errorDiv = document.getElementById('register-error');
     const submitButton = document.getElementById('register-button');
+    const originalButtonText = submitButton.textContent || 'Start Your Journey';
 
-    // Validation
-    if (!username || username.length < 3) {
-        errorDiv.textContent = 'Username must be at least 3 characters long';
+    // Show errors in a visible, user-friendly way
+    function showError(message) {
+        console.error('Registration error:', message);
+        errorDiv.textContent = message;
         errorDiv.style.display = 'block';
+        errorDiv.style.color = '#ff3860';
+        errorDiv.style.padding = '10px';
+        errorDiv.style.marginBottom = '15px';
+        errorDiv.style.border = '1px solid #ff3860';
+        errorDiv.style.borderRadius = '4px';
+        errorDiv.scrollIntoView({ behavior: 'smooth' });
+        submitButton.disabled = false;
+        submitButton.textContent = originalButtonText;
+    }
+
+    // Reset any previous errors
+    errorDiv.style.display = 'none';
+    
+    // Username validation
+    if (!username || username.length < 3) {
+        showError('Username must be at least 3 characters long');
         return;
     }
     
     if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
-        errorDiv.textContent = 'Username must be 3-20 characters and contain only letters, numbers, underscores, or hyphens';
-        errorDiv.style.display = 'block';
+        showError('Username must be 3-20 characters and contain only letters, numbers, underscores, or hyphens');
         return;
     }
     
-    if (!password || password.length < 8) {
-        errorDiv.textContent = 'Password must be at least 8 characters long';
-        errorDiv.style.display = 'block';
+    // Template validation - Use Financial Assassin as default if none selected
+    if (!selectedTemplate) {
+        console.log('No template selected, defaulting to financial_assassin');
+        selectedTemplate = 'financial_assassin';
+        // Visually select the financial_assassin template if it exists
+        const financialAssassinCard = document.querySelector('.template-card[data-template="financial_assassin"]');
+        if (financialAssassinCard) {
+            document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+            financialAssassinCard.classList.add('selected');
+        }
+    }
+    
+    // Password validation
+    if (!password) {
+        showError('Please enter a password');
         return;
     }
     
-    // Enhanced password validation
-    const hasUppercase = /[A-Z]/.test(password);
-    const hasLowercase = /[a-z]/.test(password);
-    const hasDigit = /[0-9]/.test(password);
-    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+    if (password.length < 8) {
+        showError('Password must be at least 8 characters long');
+        return;
+    }
     
-    const categoriesSatisfied = [hasUppercase, hasLowercase, hasDigit, hasSpecial].filter(Boolean).length;
-    if (categoriesSatisfied < 3) {
-        errorDiv.textContent = 'Password must include at least 3 of: uppercase letters, lowercase letters, numbers, and special characters';
-        errorDiv.style.display = 'block';
+    // Simplified password validation - focus on length more than complexity
+    const hasLetters = /[A-Za-z]/.test(password);
+    const hasDigits = /[0-9]/.test(password);
+    
+    if (!hasLetters || !hasDigits) {
+        showError('Password must include both letters and numbers');
         return;
     }
     
     if (password !== confirmPassword) {
-        errorDiv.textContent = 'Passwords do not match';
-        errorDiv.style.display = 'block';
+        showError('Passwords do not match');
         return;
     }
     
-    // Clear previous error
-    errorDiv.style.display = 'none';
-    
     // Show loading state
-    const originalButtonText = submitButton.textContent;
     submitButton.textContent = 'Creating account...';
     submitButton.disabled = true;
     
@@ -430,37 +456,56 @@ async function handleRegister(event) {
             timestamp: new Date().toISOString()
         }));
         
-        // Start a background task to try API registration
+        // Try API registration in background (non-blocking)
         setTimeout(() => {
             try {
+                console.log('Attempting API registration in background');
                 fetch('/api/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(registerData)
                 })
                 .then(response => {
-                    console.log('Background registration response:', response.status);
+                    console.log('Background API registration attempt returned:', response.status);
                     if (response.ok) {
                         return response.json();
                     }
-                    throw new Error('API registration failed: ' + response.status);
+                    throw new Error('Background API registration failed: ' + response.status);
                 })
                 .then(data => {
-                    console.log('API registration successful:', data);
-                    // Update tokens if available
+                    console.log('Background API registration successful:', data);
+                    // Update with actual data
                     if (data.access_token) {
                         storeAuthTokens(data.access_token, data.refresh_token, data.expires_in);
                         localStorage.removeItem(`registration_pending_${username}`);
                     }
                 })
                 .catch(err => {
-                    console.warn('Background registration attempt failed:', err);
-                    // Will retry on next login
+                    console.warn('Background API registration failed:', err);
+                    // Not a problem - will try again on next app start or login
                 });
-            } catch (bgError) {
-                console.warn('Background registration error:', bgError);
+            } catch (err) {
+                console.warn('Error initiating background registration:', err);
             }
-        }, 100);
+        }, 500);
+        
+        // Show success message and redirect
+        errorDiv.textContent = 'Registration successful! Redirecting to your dashboard...';
+        errorDiv.style.display = 'block';
+        errorDiv.style.color = '#4CAF50';
+        errorDiv.style.border = '1px solid #4CAF50';
+        
+        // Play victory sound if available
+        try {
+            playVictorySound();
+        } catch (e) {
+            console.warn('Could not play victory sound', e);
+        }
+        
+        // Redirect to dashboard
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 1500);
         
         // Show success message
         errorDiv.textContent = 'Account created successfully! Redirecting...';
@@ -478,10 +523,7 @@ async function handleRegister(event) {
 
     } catch (error) {
         console.error('Registration error:', error);
-        errorDiv.textContent = 'Connection error. Please try again later.';
-        errorDiv.style.display = 'block';
-        submitButton.textContent = originalButtonText;
-        submitButton.disabled = false;
+        showError('Connection error. Your account has been created locally. You can start using the app right away!');
         
         // If offline, store registration intent for later sync
         if (!navigator.onLine) {
@@ -494,8 +536,15 @@ async function handleRegister(event) {
                     timestamp: new Date().toISOString()
                 }));
                 
-                errorDiv.textContent = 'You appear to be offline. Your registration will be completed when you reconnect.';
+                errorDiv.textContent = 'You appear to be offline. Your activities and progress will sync when you reconnect.';
+                errorDiv.style.color = '#2196F3';  // Blue color for information
+                errorDiv.style.border = '1px solid #2196F3';
                 errorDiv.style.display = 'block';
+                
+                // Redirect to dashboard after showing offline message
+                setTimeout(() => {
+                    window.location.href = 'index.html?mode=offline';
+                }, 2500);
             } catch (e) {
                 console.error('Failed to store offline registration intent:', e);
             }
