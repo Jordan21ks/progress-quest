@@ -305,26 +305,25 @@ async function handleLogin(event) {
         }
     }
 }
-
-// Handle registration form submission
 async function handleRegister(event) {
     event.preventDefault();
     
+    // Access form elements
     const username = document.getElementById('register-username').value.trim();
     const password = document.getElementById('register-password').value;
+    const confirmPassword = document.getElementById('register-confirm-password').value;
     const errorDiv = document.getElementById('register-error');
-    const submitButton = event.submitter || document.querySelector('#registerForm button[type="submit"]');
-    
-    // Get selected template
-    if (!selectedTemplate) {
-        errorDiv.textContent = 'Please select a template to get started';
+    const submitButton = document.getElementById('register-button');
+
+    // Validation
+    if (!username || username.length < 3) {
+        errorDiv.textContent = 'Username must be at least 3 characters long';
         errorDiv.style.display = 'block';
         return;
     }
     
-    // Validation
-    if (!username || username.length < 3) {
-        errorDiv.textContent = 'Username must be at least 3 characters long';
+    if (!/^[a-zA-Z0-9_-]{3,20}$/.test(username)) {
+        errorDiv.textContent = 'Username must be 3-20 characters and contain only letters, numbers, underscores, or hyphens';
         errorDiv.style.display = 'block';
         return;
     }
@@ -348,6 +347,12 @@ async function handleRegister(event) {
         return;
     }
     
+    if (password !== confirmPassword) {
+        errorDiv.textContent = 'Passwords do not match';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
     // Clear previous error
     errorDiv.style.display = 'none';
     
@@ -357,75 +362,120 @@ async function handleRegister(event) {
     submitButton.disabled = true;
     
     try {
-        console.log('Starting registration process...');
-        // Online registration
+        console.log('Starting offline-first registration process...');
+        // Create an offline user ID and hash the password
+        const tempUserId = 'offline-' + Date.now();
+        const passwordHash = await secureHashPassword(password);
+
+        // Store registration data for future sync
         const registerData = {
             username: username,
             password: password,
-            template: selectedTemplate
+            template: selectedTemplate || 'default'
+        };
+
+        // Save credentials for offline use
+        await storeOfflineCredentials(username, password, {
+            id: tempUserId,
+            username: username,
+            created_at: new Date().toISOString(),
+            isOfflineCreated: true
+        });
+
+        // Generate a temporary authentication token
+        const tempToken = 'offline.' + btoa(Date.now() + '.' + username);
+        storeAuthTokens(tempToken, null, 24 * 60 * 60); // 24 hour temp access
+        
+        // Store user data locally
+        const userData = {
+            id: tempUserId,
+            username: username,
+            isOfflineAccount: true,
+            registrationDate: new Date().toISOString(),
+            pendingCloudSync: true
         };
         
-        console.log('Sending registration data:', { username, template: selectedTemplate });
+        storeCurrentUser(userData);
         
-        // Set up abort controller with longer timeout for registration
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds timeout
+        // Pre-populate goals based on selected template
+        let initialSkills = [];
+        let initialFinancial = [];
         
-        const response = await fetch('/api/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include', // Include cookies for CORS if needed
-            body: JSON.stringify(registerData),
-            signal: controller.signal
-        }).catch(error => {
-            console.error('Fetch error during registration:', error);
-            throw new Error('Network error during registration');
-        });
-        
-        // Clear the timeout since the request completed
-        clearTimeout(timeoutId);
-        
-        console.log('Registration response received:', response.status, response.statusText);
-        
-        let data;
-        try {
-            data = await response.json();
-            console.log('Registration response data:', data);
-        } catch (jsonError) {
-            console.error('Error parsing registration response:', jsonError);
-            throw new Error('Invalid response from server');
+        // Use the Financial Assassin template or generic activities
+        if (selectedTemplate === 'financial_assassin') {
+            initialFinancial = [
+                { name: "Debt Repayment", target: 27000, current: 0, level: 1, type: 'financial' },
+                { name: "Emergency Fund", target: 5000, current: 0, level: 1, type: 'financial' }
+            ];
         }
         
-        if (response.ok) {
-            // Store auth tokens
-            storeAuthTokens(data.access_token, data.refresh_token, data.expires_in);
-            
-            // Store user info
-            storeCurrentUser(data.user);
-            
-            // Store credentials for offline use
-            await storeOfflineCredentials(username, password, data.user);
-            
-            // Show success
-            errorDiv.textContent = 'Account created successfully! Redirecting...';
-            errorDiv.style.display = 'block';
-            errorDiv.style.color = '#008000';
-            submitButton.textContent = 'Success!';
-            
-            // Play victory sound
-            playVictorySound();
-            
-            // Redirect to main page
-            setTimeout(() => {
-                window.location.href = 'index.html';
-            }, 1500);
-        } else {
-            // Handle registration error
-            errorDiv.textContent = data.error || 'Registration failed. Please try again.';
-            errorDiv.style.display = 'block';
-            submitButton.textContent = originalButtonText;
-            submitButton.disabled = false;
-        }
+        // Add activity tracking goals
+        initialSkills = [
+            { name: "Tennis", target: 15, current: 7, level: 1, type: 'skill' },
+            { name: "BJJ", target: 15, current: 1, level: 1, type: 'skill' },
+            { name: "Cycling", target: 10, current: 0, level: 1, type: 'skill' },
+            { name: "Skiing", target: 8, current: 2, level: 1, type: 'skill' },
+            { name: "Padel", target: 10, current: 2, level: 1, type: 'skill' },
+            { name: "Spanish", target: 15, current: 1, level: 1, type: 'skill' },
+            { name: "Pilates", target: 10, current: 0, level: 1, type: 'skill' },
+            { name: "Cooking", target: 10, current: 0, level: 1, type: 'skill' }
+        ];
+        
+        // Store the initial goals in local storage
+        await Storage.saveGoals(initialSkills, initialFinancial, username);
+        
+        // Store pending registration for future sync
+        localStorage.setItem(`registration_pending_${username}`, JSON.stringify({
+            ...registerData,
+            timestamp: new Date().toISOString()
+        }));
+        
+        // Start a background task to try API registration
+        setTimeout(() => {
+            try {
+                fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(registerData)
+                })
+                .then(response => {
+                    console.log('Background registration response:', response.status);
+                    if (response.ok) {
+                        return response.json();
+                    }
+                    throw new Error('API registration failed: ' + response.status);
+                })
+                .then(data => {
+                    console.log('API registration successful:', data);
+                    // Update tokens if available
+                    if (data.access_token) {
+                        storeAuthTokens(data.access_token, data.refresh_token, data.expires_in);
+                        localStorage.removeItem(`registration_pending_${username}`);
+                    }
+                })
+                .catch(err => {
+                    console.warn('Background registration attempt failed:', err);
+                    // Will retry on next login
+                });
+            } catch (bgError) {
+                console.warn('Background registration error:', bgError);
+            }
+        }, 100);
+        
+        // Show success message
+        errorDiv.textContent = 'Account created successfully! Redirecting...';
+        errorDiv.style.display = 'block';
+        errorDiv.style.color = '#008000';
+        submitButton.textContent = 'Success!';
+        
+        // Play victory sound
+        playVictorySound();
+        
+        // Redirect to main page
+        setTimeout(() => {
+            window.location.href = 'index.html';
+        }, 1500);
+
     } catch (error) {
         console.error('Registration error:', error);
         errorDiv.textContent = 'Connection error. Please try again later.';
