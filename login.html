@@ -20,7 +20,7 @@
     <meta name="robots" content="noindex, nofollow">
     
     <!-- Security features with more permissive script policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:5001 https://experience-points-backend.onrender.com https://experiencepoints.app; connect-src 'self' http://localhost:5001 https://experience-points-backend.onrender.com https://experiencepoints.app http://localhost:* https://*.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://images.squarespace-cdn.com">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:5001 https://experience-points-backend.onrender.com; connect-src 'self' http://localhost:5001 https://experience-points-backend.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://images.squarespace-cdn.com">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
     <!-- Favicon and PWA Support -->
@@ -68,12 +68,9 @@
                 </div>
                 <div class="form-group">
                     <label for="register-password">Create Password:</label>
-                    <input type="password" id="register-password" required minlength="8">
-                    <small class="password-requirements">Password must be at least 8 characters long and include at least 3 of: uppercase letters, lowercase letters, numbers, and special characters</small>
-                </div>
-                <div class="form-group">
-                    <label for="register-confirm-password">Confirm Password:</label>
-                    <input type="password" id="register-confirm-password" required minlength="8">
+                    <input type="password" id="register-password" pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$" required 
+                           title="Password must be at least 8 characters long and include both letters and numbers">
+                    <small class="password-requirements">Password must be at least 8 characters long and include both letters and numbers</small>
                 </div>
                 <div class="form-group register-templates">
                     <label>Choose Your Path:</label>

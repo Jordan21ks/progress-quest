@@ -48,109 +48,54 @@ export function formatCurrency(value) {
 // Track failed login attempts to help diagnose password issues
 let failedLoginAttempts = 0;
 
-// Token management
-const TOKEN_REFRESH_THRESHOLD = 30 * 60 * 1000; // 30 minutes in milliseconds
-
-export function getAuthTokens() {
-    // Check both new (access_token) and legacy (token) storage formats
-    return {
-        accessToken: localStorage.getItem('access_token') || sessionStorage.getItem('access_token') || 
-                    localStorage.getItem('token') || sessionStorage.getItem('token'),
-        refreshToken: localStorage.getItem('refresh_token') || sessionStorage.getItem('refresh_token'),
-        tokenExpiry: localStorage.getItem('token_expiry') ? parseInt(localStorage.getItem('token_expiry')) : 
-                    (localStorage.getItem('auth_timestamp') ? parseInt(localStorage.getItem('auth_timestamp')) + (24 * 60 * 60 * 1000) : null)
-    };
-}
-
-export function storeAuthTokens(accessToken, refreshToken, expiresIn) {
-    try {
-        // Store tokens in localStorage for persistence
-        localStorage.setItem('access_token', accessToken);
+export function getToken() {
+    // Try localStorage first - most reliable for persistence
+    let token = localStorage.getItem('token');
+    
+    // If not in localStorage, try sessionStorage
+    if (!token) {
+        token = sessionStorage.getItem('token');
         
-        if (refreshToken) {
-            localStorage.setItem('refresh_token', refreshToken);
+        // If found in sessionStorage but not localStorage, try to restore it to localStorage
+        // This helps with cross-session persistence
+        if (token) {
+            try {
+                localStorage.setItem('token', token);
+                console.log('Restored token from sessionStorage to localStorage');
+            } catch (e) {
+                console.warn('Failed to restore token to localStorage:', e);
+            }
         }
-        
-        if (expiresIn) {
-            const expiryTime = Date.now() + (expiresIn * 1000);
-            localStorage.setItem('token_expiry', expiryTime.toString());
+    }
+    
+    // If still not found, try cookies
+    if (!token) {
+        const cookies = document.cookie.split(';');
+        for (const cookie of cookies) {
+            const [name, value] = cookie.trim().split('=');
+            if (name === 'token') {
+                token = value;
+                
+                // If found in cookies but not in storage, try to restore to both storage types
+                try {
+                    localStorage.setItem('token', token);
+                    sessionStorage.setItem('token', token);
+                    console.log('Restored token from cookies to storage');
+                } catch (e) {
+                    console.warn('Failed to restore token to storage:', e);
+                }
+                
+                break;
+            }
         }
-        
-        // Also store in sessionStorage for redundancy but faster access
-        sessionStorage.setItem('access_token', accessToken);
-        
-        if (refreshToken) {
-            sessionStorage.setItem('refresh_token', refreshToken);
-        }
-        
-        // Reset failed login attempts
+    }
+    
+        // Reset failed login counter if we have a valid token
+    if (token) {
         failedLoginAttempts = 0;
-        
-        return true;
-    } catch (e) {
-        console.error('Failed to store auth tokens:', e);
-        return false;
-    }
-}
-
-export function clearAuthTokens() {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('token_expiry');
-    sessionStorage.removeItem('access_token');
-    sessionStorage.removeItem('refresh_token');
-    document.cookie = 'token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-}
-
-// Get the access token, refreshing if necessary
-export async function getToken() {
-    const { accessToken, refreshToken, tokenExpiry } = getAuthTokens();
-    
-    // If we have a valid access token that's not near expiration, return it
-    if (accessToken && tokenExpiry && (tokenExpiry - Date.now() > TOKEN_REFRESH_THRESHOLD)) {
-        return accessToken;
     }
     
-    // If we have a refresh token, try to get a new access token
-    if (refreshToken) {
-        try {
-            const response = await fetch('/api/token/refresh', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ refresh_token: refreshToken })
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                
-                storeAuthTokens(
-                    data.access_token,
-                    data.refresh_token, // May be undefined if not rotating
-                    data.expires_in
-                );
-                
-                return data.access_token;
-            } else {
-                // If refresh failed, clear tokens and return null
-                clearAuthTokens();
-                return null;
-            }
-        } catch (e) {
-            console.error('Error refreshing token:', e);
-            
-            // If there's an error but we still have an access token, return it as a last resort
-            if (accessToken) {
-                return accessToken;
-            }
-            
-            return null;
-        }
-    }
-    
-    // No tokens available
-    return null;
+    return token;
 }
 
 // Save user data to permanent local storage with enhanced backup
@@ -268,82 +213,101 @@ export function loadUserDataLocally(specificUsername) {
 export function recordLoginFailure(username, error) {
     failedLoginAttempts++;
     
-    console.warn(`Login failure #${failedLoginAttempts} for ${username}: ${error?.toString() || 'Unknown error'}`);
-    
-    // If we have multiple failures, try recovery steps
-    if (failedLoginAttempts >= 3) {
-        console.warn('Multiple login failures detected, clearing possible corrupted tokens');
-        // Clear tokens but preserve user data
-        clearAuthTokens();
-    }
-    
-    return failedLoginAttempts;
-}
-
-// User information management
-export function getCurrentUser() {
+    // Store failure details for debugging
     try {
-        const userJson = localStorage.getItem('current_user');
-        if (userJson) {
-            return JSON.parse(userJson);
+        const failureLog = JSON.parse(localStorage.getItem('login_failures') || '[]');
+        failureLog.push({
+            username,
+            timestamp: new Date().toISOString(),
+            error: error?.toString() || 'Unknown error',
+            attemptCount: failedLoginAttempts
+        });
+        
+        // Keep only the last 5 failures to avoid storage overflow
+        while (failureLog.length > 5) {
+            failureLog.shift();
+        }
+        
+        localStorage.setItem('login_failures', JSON.stringify(failureLog));
+        console.warn(`Login failure #${failedLoginAttempts} recorded for user: ${username}`);
+        
+        // If we have multiple failures, try some recovery steps
+        if (failedLoginAttempts >= 2) {
+            console.warn('Multiple login failures detected, attempting recovery...');
+            // Clear any potentially corrupted tokens
+            sessionStorage.removeItem('token');
+            // But keep the username for login form
         }
     } catch (e) {
-        console.error('Error parsing current user:', e);
+        console.error('Failed to record login failure:', e);
     }
-    
-    return null;
-}
-
-export function storeCurrentUser(user) {
-    if (!user || !user.username) return false;
-    
-    try {
-        localStorage.setItem('current_user', JSON.stringify(user));
-        sessionStorage.setItem('current_user', JSON.stringify(user));
-        
-        // For backward compatibility
-        localStorage.setItem('username', user.username);
-        sessionStorage.setItem('username', user.username);
-        
-        return true;
-    } catch (e) {
-        console.error('Failed to store current user:', e);
-        return false;
-    }
-}
-
-export function clearCurrentUser() {
-    localStorage.removeItem('current_user');
-    sessionStorage.removeItem('current_user');
-    localStorage.removeItem('username');
-    sessionStorage.removeItem('username');
 }
 
 export function getUsername() {
-    // First try to get from current user object
-    const currentUser = getCurrentUser();
-    if (currentUser && currentUser.username) {
-        return currentUser.username;
+    // Try localStorage first - most reliable for persistence
+    let username = localStorage.getItem('username');
+    
+    // If not in localStorage, try sessionStorage
+    if (!username) {
+        username = sessionStorage.getItem('username');
+        
+        // If found in sessionStorage but not localStorage, restore to localStorage
+        if (username) {
+            try {
+                localStorage.setItem('username', username);
+                console.log('Restored username from sessionStorage to localStorage');
+            } catch (e) {
+                console.warn('Failed to restore username to localStorage:', e);
+            }
+        }
     }
     
-    // Fall back to traditional storage methods
-    let username = localStorage.getItem('username') || sessionStorage.getItem('username');
-    
-    // If not found in storage, try cookies as a last resort
+    // If still not found, try both cookie types
     if (!username) {
         const cookies = document.cookie.split(';');
         for (const cookie of cookies) {
             const [name, value] = cookie.trim().split('=');
             if (name === 'username' || name === 'registered_user') {
                 username = value;
+                
+                // If found in cookies but not in storage, restore to both storage types
+                try {
+                    localStorage.setItem('username', username);
+                    sessionStorage.setItem('username', username);
+                    console.log('Restored username from cookies to storage');
+                } catch (e) {
+                    console.warn('Failed to restore username to storage:', e);
+                }
+                
                 break;
             }
         }
     }
     
-    // If we found a username, store it properly
+    // Last resort - check for registered users list
+    if (!username) {
+        try {
+            const registeredUsers = localStorage.getItem('registered_users');
+            if (registeredUsers) {
+                const users = JSON.parse(registeredUsers);
+                if (users.length > 0) {
+                    // If we have registered users, use the most recent one
+                    username = users[users.length - 1];
+                    console.log('Using most recent registered user as fallback');
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to parse registered users:', e);
+        }
+    }
+    
+    // If username found from any source, ensure it's saved in session storage at minimum
     if (username) {
-        storeCurrentUser({ username });
+        try {
+            sessionStorage.setItem('last_username', username);
+        } catch (e) {
+            console.warn('Failed to save username to session storage:', e);
+        }
     }
     
     return username;
