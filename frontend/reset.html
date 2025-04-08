@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Experience Points</title>
+    <style>
+        body {
+            background-color: #030824;
+            color: #63C5DA;
+            font-family: 'Courier New', monospace;
+            text-align: center;
+            padding: 20px;
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 30px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: rgba(0, 5, 30, 0.7);
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(99, 197, 218, 0.3);
+        }
+        button {
+            background-color: #194d8e;
+            color: #63C5DA;
+            border: 2px solid #63C5DA;
+            padding: 12px 25px;
+            font-size: 18px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            font-family: 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background-color: #0a2d5a;
+            transform: scale(1.05);
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #63C5DA;
+            border-radius: 5px;
+            display: none;
+        }
+        .backup {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #4a95a7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Experience Points Reset Tool</h1>
+        <p>This tool will help fix your login/session issues by clearing stored authentication data.</p>
+        <p>Your activity data (Tennis: 7/15 hrs, BJJ: 1/15 hrs, etc.) and financial goals will be preserved on the server.</p>
+        
+        <button id="reset-btn">Reset & Return to Login</button>
+        <button id="logout-btn">Just Logout</button>
+        
+        <div id="result" class="result"></div>
+        
+        <div class="backup">
+            <p>Activity backup: Tennis (7/15), BJJ (1/15), Cycling (0/10), Skiing (2/8), Padel (2/10), Spanish (1/15), Pilates (0/10), Cooking (0/10)</p>
+            <p>Financial backup: Debt Repayment (£0/£27k)</p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            // Clear all storage
+            try {
+                // Clear localStorage
+                localStorage.clear();
+                
+                // Clear sessionStorage
+                sessionStorage.clear();
+                
+                // Clear cookies
+                document.cookie.split(";").forEach(function(c) {
+                    document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+                });
+                
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').innerHTML = 'Reset successful! Redirecting to login page...';
+                
+                // Redirect after a short delay
+                setTimeout(function() {
+                    window.location.href = 'login.html';
+                }, 2000);
+            } catch (error) {
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').innerHTML = 'Error during reset: ' + error.message;
+            }
+        });
+        
+        document.getElementById('logout-btn').addEventListener('click', function() {
+            // Just clear auth tokens
+            try {
+                localStorage.removeItem('token');
+                localStorage.removeItem('access_token');
+                sessionStorage.removeItem('token');
+                sessionStorage.removeItem('access_token');
+                
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').innerHTML = 'Logged out! Redirecting to login page...';
+                
+                // Redirect after a short delay
+                setTimeout(function() {
+                    window.location.href = 'login.html';
+                }, 2000);
+            } catch (error) {
+                document.getElementById('result').style.display = 'block';
+                document.getElementById('result').innerHTML = 'Error during logout: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>
