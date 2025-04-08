@@ -30,8 +30,8 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://experiencepoints.app">
     
-    <!-- Security features with more permissive script policy -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http://localhost:5001 https://experience-points-backend.onrender.com; connect-src 'self' http://localhost:5001 https://experience-points-backend.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://images.squarespace-cdn.com">
+    <!-- Security features with enterprise-compatible CSP -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' http: https: data: blob: 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http: https:; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https: http:; font-src 'self' https: data:; img-src 'self' data: https: http: blob:; frame-src 'self' https: http:; worker-src 'self' blob:; manifest-src 'self'">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     
     <!-- Favicon and PWA Support -->
@@ -136,6 +136,9 @@
         </div>
     </div>
 
+    <!-- Enterprise compatibility for work MacBooks -->
+    <script src="corporate-compat.js"></script>
+    
     <!-- Load scripts in correct order -->
     <script type="module">
         import { handleFormSubmit, hideModal, deleteGoal } from './script.js';
