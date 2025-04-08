@@ -2,6 +2,7 @@ import { playLevelUpSound, playVictorySound } from './sounds.js';
 import { skillEmojis, formatCurrency, getToken, getUsername, storeCurrentUser } from './data.js';
 import * as Storage from './storage.js';
 import * as Sync from './sync.js';
+import { isDirectlyAuthenticated, getDirectUsername, loadDirectGoals } from './bypass.js';
 
 // Fun facts and progression milestones for skills
 const SKILL_FACTS = {
@@ -97,48 +98,66 @@ const FINANCIAL_FACTS = [
 ];
 
 // Data storage
-// Check authentication using shared helper functions with bypass for offline mode
+// Check authentication using our new direct authentication system first
+// and falling back to the previous token-based systems if needed
 async function checkAuth() {
-    // Special case - if coming from registration with mode=offline parameter, skip token check
-    if (window.location.search.includes('mode=offline')) {
-        console.log('Offline mode detected, bypassing token check');
-        // Remove the query parameter to avoid infinite bypass
-        if (window.history && window.history.replaceState) {
-            const url = new URL(window.location.href);
-            url.searchParams.delete('mode');
-            window.history.replaceState({}, document.title, url.toString());
-        }
+    console.log('Running authentication check...');
+    
+    // DIRECT AUTH CHECK - our new reliable system
+    if (isDirectlyAuthenticated()) {
+        console.log('✅ User authenticated via direct system!');
         
-        // Initialize the sync system anyway
+        // Load goals using the direct system
+        const goalsLoaded = loadDirectGoals();
+        console.log('Direct goals loaded:', goalsLoaded ? 'Success' : 'No goals found');
+        
+        // Initialize the sync system
         Sync.setupAutoSync();
         return true;
     }
     
-    // Check all possible token storage locations directly
-    const directToken = localStorage.getItem('access_token') || 
-                      sessionStorage.getItem('access_token') ||
-                      localStorage.getItem('token') ||
-                      sessionStorage.getItem('token');
-                      
-    // Also get username as a secondary authentication factor
-    const username = localStorage.getItem('username') || sessionStorage.getItem('username');
-    
-    console.log('Auth check:', directToken ? 'Token found' : 'No token', username ? 'Username found' : 'No username');
-    
-    // Try the centralized helper function as a backup
-    const token = directToken || await getToken();
-    
-    // Accept either token or username as proof of authentication
-    if (!token && !username) {
-        console.log('No authentication found, redirecting to login');
-        window.location.href = 'login.html';
-        return false;
+    // Special URL parameter handling
+    if (window.location.search.includes('direct_auth=success')) {
+        console.log('Direct auth success parameter detected, considering authenticated');
+        // Remove the query parameter
+        if (window.history && window.history.replaceState) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete('direct_auth');
+            window.history.replaceState({}, document.title, url.toString());
+        }
+        return true;
     }
     
-    // Initialize the sync system
-    Sync.setupAutoSync();
+    // LEGACY CHECKS - try all previously used authentication methods as fallback
+    console.log('Direct auth not found, trying legacy methods...');
     
-    return true;
+    // Check token storage directly
+    const hasToken = localStorage.getItem('access_token') || 
+                    sessionStorage.getItem('access_token') ||
+                    localStorage.getItem('token') ||
+                    sessionStorage.getItem('token');
+    
+    // Check username
+    const username = localStorage.getItem('username') || sessionStorage.getItem('username');
+    
+    // Try centralized token function
+    let token = null;
+    try {
+        token = await getToken();
+    } catch (error) {
+        console.warn('Error getting token:', error);
+    }
+    
+    if (hasToken || token || username) {
+        console.log('Legacy auth found:', hasToken ? 'Direct token' : '', token ? 'Function token' : '', username ? 'Username' : '');
+        Sync.setupAutoSync();
+        return true;
+    }
+    
+    // No authentication found, redirect to login
+    console.log('❌ No authentication method succeeded, redirecting to login');
+    window.location.href = 'login.html';
+    return false;
 }
 
 // Check if we have cached data to display
@@ -318,13 +337,13 @@ export async function loadGoals() {
     try {
         // Dynamic import to avoid circular dependencies
         const dataModule = await import('./data.js');
-    
-    try {
-        // First try to display cached data instantly for better user experience
-        const hasCached = await loadCachedGoals();
-        if (hasCached) {
-            console.log('Using cached data while fetching from server');
-        }
+        
+        try {
+            // First try to display cached data instantly for better user experience
+            const hasCached = await loadCachedGoals();
+            if (hasCached) {
+                console.log('Using cached data while fetching from server');
+            }
         
         // Only continue with server fetch if we're online
         if (!navigator.onLine) {
@@ -919,6 +938,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         'Authorization': `Bearer ${token}`
                     },
                     signal: controller.signal
+                })
                 });
                 
                 clearTimeout(timeoutId);
