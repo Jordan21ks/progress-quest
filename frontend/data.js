@@ -3,11 +3,11 @@
 // Skill emojis mapping
 export const skillEmojis = {
     // Sports
-    'Tennis': '🏨',
+    'Tennis': '🎾',
     'BJJ': '🥋',
     'Cycling': '🚴',
     'Skiing': '⛷',
-    'Padel': '🎾',
+    'Padel': '🏓',
     'Squash': '🎾',
     'Badminton': '🏸',
     'Hyrox Training': '🏃',
