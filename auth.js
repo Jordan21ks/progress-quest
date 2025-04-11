@@ -126,10 +126,40 @@ async function loadTemplates() {
     // Show loading indicator
     templateGrid.innerHTML = '<div class="loading-templates">Loading your journey options...</div>';
     
+    // Define fallback templates that will always be available
+    const fallbackTemplates = [
+        financialAssassinTemplate,
+        {
+            id: "activity_tracker",
+            name: "Activity Tracker",
+            description: "Track your favorite activities and sports",
+            skills: [
+                { name: "Tennis", target: 15, current: 7, level: 1 },
+                { name: "BJJ", target: 15, current: 1, level: 1 },
+                { name: "Cycling", target: 10, current: 0, level: 1 },
+                { name: "Skiing", target: 8, current: 2, level: 1 },
+                { name: "Padel", target: 10, current: 2, level: 1 },
+                { name: "Spanish", target: 15, current: 1, level: 1 },
+                { name: "Pilates", target: 10, current: 0, level: 1 },
+                { name: "Cooking", target: 10, current: 0, level: 1 }
+            ],
+            financial: []
+        },
+        {
+            id: "debt_freedom",
+            name: "Debt Freedom",
+            description: "Track your journey to financial freedom",
+            skills: [],
+            financial: [
+                { name: "Debt Repayment", target: 27000, current: 0, level: 1 }
+            ]
+        }
+    ];
+    
     try {
         // Use AbortController for timeout handling
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // Reduced timeout
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // Reduced timeout further
         
         const response = await fetch('https://experience-points-backend.onrender.com/api/templates', { 
             headers: {'Accept': 'application/json'},
@@ -139,26 +169,33 @@ async function loadTemplates() {
         
         clearTimeout(timeoutId);
         
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        let templates = [];
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data?.templates?.length) {
+                templates = [...data.templates];
+                
+                // Replace the Financial Assassin template with our hardcoded version
+                const financialAssassinIndex = templates.findIndex(t => t.id === 'financial_assassin');
+                if (financialAssassinIndex >= 0) {
+                    templates[financialAssassinIndex] = financialAssassinTemplate;
+                } else {
+                    // Add it if it doesn't exist
+                    templates.push(financialAssassinTemplate);
+                }
+            } else {
+                // No templates from API, use fallbacks
+                templates = fallbackTemplates;
+                console.log('No templates from API, using fallbacks');
+            }
+        } else {
+            // API request failed, use fallbacks
+            templates = fallbackTemplates;
+            console.log('API request failed, using fallback templates');
         }
         
-        const data = await response.json();
         templateGrid.innerHTML = '';
-        
-        if (!data?.templates?.length) {
-            templateGrid.innerHTML = '<div class="error-message">No templates available.</div>';
-            return;
-        }
-        
-        // Ensure financialAssassin template is properly set
-        let templates = [...data.templates];
-        
-        // Replace the Financial Assassin template with our hardcoded version
-        const financialAssassinIndex = templates.findIndex(t => t.id === 'financial_assassin');
-        if (financialAssassinIndex >= 0) {
-            templates[financialAssassinIndex] = financialAssassinTemplate;
-        }
         
         // Pre-process all templates at once
         const processedTemplates = templates.map(generateTemplateHTML);
@@ -184,16 +221,58 @@ async function loadTemplates() {
         });
         
         templateGrid.appendChild(fragment);
+        
+        // Auto-select the first template if none is selected
+        if (processedTemplates.length > 0 && !selectedTemplate) {
+            const firstCard = templateGrid.querySelector('.template-card');
+            if (firstCard) {
+                firstCard.click(); // This will trigger the click handler
+            }
+        }
     } catch (error) {
         console.error('Failed to load templates:', error);
-        const templateGrid = document.querySelector('.template-grid');
-        if (templateGrid) {
-            templateGrid.innerHTML = `<div class="error-message">Failed to load templates: ${error.message}</div>`;
+        
+        // Use fallback templates when there's an error
+        templateGrid.innerHTML = '';
+        
+        // Process and display fallback templates
+        const processedTemplates = fallbackTemplates.map(generateTemplateHTML);
+        const fragment = document.createDocumentFragment();
+        
+        processedTemplates.forEach(template => {
+            const card = document.createElement('div');
+            card.className = 'template-card';
+            card.dataset.template = template.id;
+            card.innerHTML = template.html;
+            
+            // Add click handler
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.template-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                selectedTemplate = template.id;
+                document.getElementById('register-error').style.display = 'none';
+            });
+            
+            fragment.appendChild(card);
+        });
+        
+        templateGrid.appendChild(fragment);
+        
+        // Auto-select the first template
+        const firstCard = templateGrid.querySelector('.template-card');
+        if (firstCard) {
+            firstCard.click(); // This will trigger the click handler
         }
+        
+        // Show a non-blocking warning
         const registerError = document.getElementById('register-error');
         if (registerError) {
-            registerError.textContent = 'Failed to load templates. Please try again later.';
+            registerError.textContent = 'Using offline templates. Your data will still be saved.'; 
             registerError.style.display = 'block';
+            // Make it disappear after 5 seconds
+            setTimeout(() => {
+                registerError.style.display = 'none';
+            }, 5000);
         }
     }
 }
@@ -634,6 +713,20 @@ document.getElementById('registerForm')?.addEventListener('submit', async (e) =>
     const username = document.getElementById('register-username').value;
     const password = document.getElementById('register-password').value;
     const submitButton = document.querySelector('#registerForm .btn');
+    
+    // Check username requirements
+    if (username.trim().length < 3) {
+        errorDiv.textContent = 'Username must be at least 3 characters long';
+        errorDiv.style.display = 'block';
+        return;
+    }
+    
+    // Password strength checking
+    if (password.length < 8 || !/[A-Za-z]/.test(password) || !/[0-9]/.test(password)) {
+        errorDiv.textContent = 'Password must be at least 8 characters with both letters and numbers';
+        errorDiv.style.display = 'block';
+        return;
+    }
     
     // Store full registration info locally for recovery in case of backend issues
     try {
